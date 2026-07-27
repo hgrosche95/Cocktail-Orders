@@ -2,8 +2,14 @@
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
+  --card-bg: #faf9fb;
   --border: #e5e4e7;
   --accent: #aa3bff;
+  --accent-text: #fff;
+  --success: #1a9d5c;
+  --success-text: #fff;
+  --danger: #c0392b;
+  --danger-bg: #fdecea;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -28,9 +34,19 @@
     --text: #9ca3af;
     --text-h: #f3f4f6;
     --bg: #16171d;
+    --card-bg: #1e1f27;
     --border: #2e303a;
     --accent: #c084fc;
+    --accent-text: #16171d;
+    --success: #34d399;
+    --success-text: #16171d;
+    --danger: #f87171;
+    --danger-bg: #3a2323;
   }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
@@ -41,33 +57,243 @@ body {
   max-width: 640px;
   margin: 0 auto;
   min-height: 100svh;
-  padding: 24px 20px;
-  box-sizing: border-box;
+  padding: 16px 16px 40px;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
 }
 
 h1 {
-  font-size: 40px;
+  font-size: 32px;
   letter-spacing: -1px;
-  margin: 24px 0;
+  margin: 8px 0 20px;
+  text-align: center;
 
   @media (max-width: 1024px) {
-    font-size: 28px;
+    font-size: 26px;
   }
 }
 
 h2 {
-  font-size: 22px;
+  font-size: 20px;
   letter-spacing: -0.24px;
-  margin: 0 0 8px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 17px;
+  margin: 0 0 4px;
 }
 
 p {
   margin: 0 0 12px;
+}
+
+/* Navigation */
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: var(--text);
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Cards */
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* Buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 12px 18px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--success-text);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-small {
+  padding: 6px 12px;
+  min-height: 32px;
+  font-size: 14px;
+}
+
+/* Forms */
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.field input,
+.field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Messages */
+
+.notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--success);
+  color: var(--success-text);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.notification p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.notification .btn {
+  min-height: 32px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.25);
+  color: inherit;
+}
+
+.error-message {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+/* Cocktail list */
+
+.cocktail-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.cocktail-description {
+  font-size: 15px;
+  color: var(--text);
+}
+
+/* Order summary */
+
+.order-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.order-item:last-child {
+  border-bottom: none;
+}
+
+/* Barkeeper */
+
+.order-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.barkeeper-order .order-items {
+  margin-bottom: 12px;
+}
+
+.barkeeper-order .note {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 15px;
 }
