@@ -1,6 +1,4 @@
 function OrderSummary({ order, onRemoveItem }) {
-  const total = order.reduce((sum, item) => sum + item.price, 0)
-
   return (
     <div>
       <h2>Deine Bestellung</h2>
