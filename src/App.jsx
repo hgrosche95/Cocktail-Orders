@@ -44,9 +44,12 @@ function App() {
     localStorage.setItem('order', JSON.stringify(order))
   }, [order])
 
+  const orderFormRef = useRef(null)
+
   function handleAddToOrder(cocktail) {
     const orderItem = { ...cocktail, orderId: generateId() }
     setOrder([orderItem])
+    orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   function handleRemoveItem(orderId) {
@@ -132,6 +135,7 @@ function App() {
                 onRemoveItem={handleRemoveItem}
                 onSubmitOrder={handleSubmitOrder}
                 hasOpenOrder={hasOpenOrder}
+                orderFormRef={orderFormRef}
               />
             )
           }

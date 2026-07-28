@@ -244,16 +244,58 @@ p {
 
 /* Cocktail list */
 
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.filter-chip {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.filter-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.cocktail-category {
+  margin-bottom: 24px;
+}
+
 .cocktail-grid {
   list-style: none;
   padding: 0;
-  margin: 0 0 16px;
+  margin: 0;
   display: grid;
   gap: 12px;
 }
 
+.cocktail-ingredients {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 .cocktail-description {
   font-size: 15px;
+  color: var(--text);
+}
+
+.cocktail-movie {
+  font-size: 14px;
+  font-style: italic;
   color: var(--text);
 }
 
