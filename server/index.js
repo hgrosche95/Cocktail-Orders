@@ -32,7 +32,7 @@ wss.on('connection', (socket) => {
   })
 })
 
-function broadcastOrdersChanged() {
+function broadcastChange() {
   for (const client of clients) {
     client.send('orders-changed')
   }
@@ -44,6 +44,12 @@ db.exec(`
     name TEXT NOT NULL,
     items TEXT NOT NULL,
     note TEXT
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS unavailable_ingredients (
+    ingredient TEXT PRIMARY KEY
   )
 `)
 
@@ -83,7 +89,7 @@ app.post('/api/orders', (req, res) => {
     note
   )
 
-  broadcastOrdersChanged()
+  broadcastChange()
   res.status(201).json({ orderId, name, items, note })
 })
 
@@ -91,7 +97,32 @@ app.delete('/api/orders/:id', (req, res) => {
   const { id } = req.params
   db.prepare('DELETE FROM orders WHERE orderId = ?').run(id)
 
-  broadcastOrdersChanged()
+  broadcastChange()
+  res.status(204).end()
+})
+
+app.get('/api/unavailable-ingredients', (req, res) => {
+  const rows = db.prepare('SELECT ingredient FROM unavailable_ingredients').all()
+  res.json(rows.map((row) => row.ingredient))
+})
+
+app.post('/api/unavailable-ingredients', (req, res) => {
+  const { ingredient } = req.body
+
+  db.prepare(
+    'INSERT OR IGNORE INTO unavailable_ingredients (ingredient) VALUES (?)'
+  ).run(ingredient)
+
+  broadcastChange()
+  res.status(201).json({ ingredient })
+})
+
+app.delete('/api/unavailable-ingredients', (req, res) => {
+  const { ingredient } = req.body
+
+  db.prepare('DELETE FROM unavailable_ingredients WHERE ingredient = ?').run(ingredient)
+
+  broadcastChange()
   res.status(204).end()
 })
 
