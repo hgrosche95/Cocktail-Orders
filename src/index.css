@@ -242,6 +242,17 @@ p {
   font-size: 15px;
 }
 
+.queue-counter {
+  display: inline-block;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
 /* Cocktail list */
 
 .category-filter {
