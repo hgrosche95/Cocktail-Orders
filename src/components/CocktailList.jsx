@@ -3,7 +3,7 @@ import CocktailCard from './CocktailCard'
 
 function CocktailList({ onAddToOrder }) {
   return (
-    <ul>
+    <ul className="cocktail-grid">
       {cocktails.map((cocktail) => (
         <CocktailCard key={cocktail.id} cocktail={cocktail} onAddToOrder={onAddToOrder} />
       ))}

@@ -10,8 +10,8 @@ function LoginForm({ onLogin }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
+    <form onSubmit={handleSubmit} className="card">
+      <label className="field">
         Dein Name:
         <input
           type="text"
@@ -19,7 +19,9 @@ function LoginForm({ onLogin }) {
           onChange={(event) => setName(event.target.value)}
         />
       </label>
-      <button type="submit">Anmelden</button>
+      <button type="submit" className="btn btn-primary btn-block">
+        Anmelden
+      </button>
     </form>
   )
 }

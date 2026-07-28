@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, NavLink } from 'react-router-dom'
 import LoginForm from './components/LoginForm'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
@@ -95,18 +95,28 @@ function App() {
       <h1>Cocktail-Bestellungen</h1>
 
       {showReadyNotification && (
-        <div>
+        <div className="notification">
           <p>🍹 Deine Bestellung ist fertig!</p>
-          <button type="button" onClick={() => setShowReadyNotification(false)}>
+          <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
             Schließen
           </button>
         </div>
       )}
 
-      <nav>
-        <Link to="/">Kunde</Link>
-        {' | '}
-        <Link to="/barkeeper">Barkeeper</Link>
+      <nav className="tabs">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
+        >
+          Kunde
+        </NavLink>
+        <NavLink
+          to="/barkeeper"
+          className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
+        >
+          Barkeeper
+        </NavLink>
       </nav>
 
       <Routes>

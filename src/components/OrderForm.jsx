@@ -17,18 +17,18 @@ function OrderForm({ order, onSubmitOrder, hasOpenOrder }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
+    <form onSubmit={handleSubmit} className="card">
+      <label className="field">
         Anmerkung (optional):
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />
       </label>
-      <button type="submit" disabled={order.length === 0}>
+      <button type="submit" className="btn btn-primary btn-block" disabled={order.length === 0}>
         Bestellung abschicken
       </button>
-      {errorMessage && <p>{errorMessage}</p>}
+      {errorMessage && <p className="error-message">{errorMessage}</p>}
     </form>
   )
 }
