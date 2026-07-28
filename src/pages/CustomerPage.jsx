@@ -9,9 +9,13 @@ function CustomerPage({
   onSubmitOrder,
   hasOpenOrder,
   orderFormRef,
+  queueLength,
 }) {
   return (
     <>
+      <p className="queue-counter">
+        🍹 {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
+      </p>
       <CocktailList order={order} onAddToOrder={onAddToOrder} />
       <OrderSummary order={order} onRemoveItem={onRemoveItem} />
       <div ref={orderFormRef}>

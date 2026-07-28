@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import LoginForm from './components/LoginForm'
+import BarkeeperLogin from './components/BarkeeperLogin'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
 
@@ -83,6 +84,26 @@ function App() {
       })
   }
 
+  const [isBarkeeperAuthenticated, setIsBarkeeperAuthenticated] = useState(
+    () => sessionStorage.getItem('isBarkeeper') === 'true'
+  )
+
+  function handleBarkeeperLogin(password) {
+    return fetch(`${API_URL}/barkeeper-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          sessionStorage.setItem('isBarkeeper', 'true')
+          setIsBarkeeperAuthenticated(true)
+        }
+        return data.success
+      })
+  }
+
   function handleMarkAsDone(orderId) {
     fetch(`${API_URL}/orders/${orderId}`, {
       method: 'DELETE',
@@ -136,13 +157,20 @@ function App() {
                 onSubmitOrder={handleSubmitOrder}
                 hasOpenOrder={hasOpenOrder}
                 orderFormRef={orderFormRef}
+                queueLength={openOrders.length}
               />
             )
           }
         />
         <Route
           path="/barkeeper"
-          element={<BarkeeperPage openOrders={openOrders} onMarkAsDone={handleMarkAsDone} />}
+          element={
+            isBarkeeperAuthenticated ? (
+              <BarkeeperPage openOrders={openOrders} onMarkAsDone={handleMarkAsDone} />
+            ) : (
+              <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+            )
+          }
         />
       </Routes>
     </div>

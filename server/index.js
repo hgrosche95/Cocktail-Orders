@@ -16,6 +16,9 @@ app.use((req, res, next) => {
 
 const db = new DatabaseSync('orders.db')
 
+// TODO: eigenes Passwort setzen, bevor du die App für echte Gäste nutzt
+const BARKEEPER_PASSWORD = 'schwertfisch'
+
 const wss = new WebSocketServer({ port: 3002 })
 const clients = new Set()
 
@@ -46,6 +49,16 @@ db.exec(`
 
 app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok' })
+})
+
+app.post('/api/barkeeper-login', (req, res) => {
+  const { password } = req.body
+
+  if (password === BARKEEPER_PASSWORD) {
+    res.json({ success: true })
+  } else {
+    res.status(401).json({ success: false })
+  }
 })
 
 app.get('/api/orders', (req, res) => {
