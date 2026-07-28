@@ -12,7 +12,7 @@ function BarkeeperPage({ openOrders, onMarkAsDone }) {
               <ul className="order-items">
                 {submittedOrder.items.map((item) => (
                   <li key={item.orderId} className="order-item">
-                    {item.name} - {item.description}
+                    {item.name}
                   </li>
                 ))}
               </ul>
