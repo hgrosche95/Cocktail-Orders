@@ -1,10 +1,15 @@
 import { useState } from 'react'
+import type { FormEvent, ChangeEvent } from 'react'
 
-function BarkeeperLogin({ onLogin }) {
+interface BarkeeperLoginProps {
+  onLogin: (password: string) => Promise<boolean>
+}
+
+function BarkeeperLogin({ onLogin }: BarkeeperLoginProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     onLogin(password).then((success) => {
@@ -21,7 +26,7 @@ function BarkeeperLogin({ onLogin }) {
         <input
           type="password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setPassword(event.target.value)}
         />
       </label>
       <button type="submit" className="btn btn-primary btn-block">

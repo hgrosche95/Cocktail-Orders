@@ -1,4 +1,11 @@
-function CocktailCard({ cocktail, onAddToOrder }) {
+import type { Cocktail } from '../data/cocktails'
+
+interface CocktailCardProps {
+  cocktail: Cocktail
+  onAddToOrder: (cocktail: Cocktail) => void
+}
+
+function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
   return (
     <li className="card cocktail-card">
       <h3>{cocktail.name}</h3>

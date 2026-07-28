@@ -1,4 +1,13 @@
-const cocktails = [
+export interface Cocktail {
+  id: number
+  name: string
+  category: string
+  ingredients: string[]
+  description?: string
+  movie: string
+}
+
+const cocktails: Cocktail[] = [
   // Sauer & Erfrischend
   {
     id: 1,

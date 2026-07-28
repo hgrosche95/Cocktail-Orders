@@ -1,4 +1,11 @@
-function OrderSummary({ order, onRemoveItem }) {
+import type { OrderItem } from '../types'
+
+interface OrderSummaryProps {
+  order: OrderItem[]
+  onRemoveItem: (orderId: string) => void
+}
+
+function OrderSummary({ order, onRemoveItem }: OrderSummaryProps) {
   return (
     <div className="card">
       <h2>Deine Bestellung</h2>
