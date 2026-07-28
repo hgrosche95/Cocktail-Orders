@@ -15,8 +15,15 @@ function groupByCategory(items) {
   return groups
 }
 
-function CocktailList({ onAddToOrder }) {
-  const categories = groupByCategory(cocktails)
+function CocktailList({ onAddToOrder, unavailableIngredients }) {
+  const availableCocktails = cocktails.filter(
+    (cocktail) =>
+      !cocktail.ingredients.some((ingredient) =>
+        unavailableIngredients.includes(ingredient)
+      )
+  )
+
+  const categories = groupByCategory(availableCocktails)
   const categoryNames = Array.from(categories.keys())
 
   const [selectedCategory, setSelectedCategory] = useState('Alle')

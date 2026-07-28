@@ -1,4 +1,26 @@
-function BarkeeperPage({ openOrders, onMarkAsDone }) {
+import cocktails from '../data/cocktails'
+
+function getAllIngredients() {
+  const ingredients = new Set()
+
+  for (const cocktail of cocktails) {
+    for (const ingredient of cocktail.ingredients) {
+      ingredients.add(ingredient)
+    }
+  }
+
+  return Array.from(ingredients).sort()
+}
+
+function BarkeeperPage({
+  openOrders,
+  onMarkAsDone,
+  unavailableIngredients,
+  onMarkIngredientUnavailable,
+  onMarkIngredientAvailable,
+}) {
+  const allIngredients = getAllIngredients()
+
   return (
     <div>
       <h2>Offene Bestellungen</h2>
@@ -28,6 +50,39 @@ function BarkeeperPage({ openOrders, onMarkAsDone }) {
           ))}
         </ul>
       )}
+
+      <h2>Zutaten</h2>
+      <ul className="ingredient-list">
+        {allIngredients.map((ingredient) => {
+          const isUnavailable = unavailableIngredients.includes(ingredient)
+
+          return (
+            <li
+              key={ingredient}
+              className={isUnavailable ? 'ingredient-item unavailable' : 'ingredient-item'}
+            >
+              <span>{ingredient}</span>
+              {isUnavailable ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  onClick={() => onMarkIngredientAvailable(ingredient)}
+                >
+                  Wieder verfügbar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-small"
+                  onClick={() => onMarkIngredientUnavailable(ingredient)}
+                >
+                  Als leer markieren
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

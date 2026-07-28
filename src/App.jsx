@@ -20,6 +20,7 @@ function App() {
 
 
   const [openOrders, setOpenOrders] = useState([])
+  const [unavailableIngredients, setUnavailableIngredients] = useState([])
 
   useEffect(() => {
     function fetchOpenOrders() {
@@ -28,12 +29,20 @@ function App() {
         .then((data) => setOpenOrders(data))
     }
 
+    function fetchUnavailableIngredients() {
+      fetch(`${API_URL}/unavailable-ingredients`)
+        .then((res) => res.json())
+        .then((data) => setUnavailableIngredients(data))
+    }
+
     fetchOpenOrders()
+    fetchUnavailableIngredients()
 
     const socket = new WebSocket(`ws://${window.location.hostname}:3002`)
 
     socket.addEventListener('message', () => {
       fetchOpenOrders()
+      fetchUnavailableIngredients()
     })
 
     return () => socket.close()
@@ -114,6 +123,26 @@ function App() {
     })
   }
 
+  function handleMarkIngredientUnavailable(ingredient) {
+    fetch(`${API_URL}/unavailable-ingredients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredient }),
+    }).then(() => {
+      setUnavailableIngredients((prev) => [...prev, ingredient])
+    })
+  }
+
+  function handleMarkIngredientAvailable(ingredient) {
+    fetch(`${API_URL}/unavailable-ingredients`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredient }),
+    }).then(() => {
+      setUnavailableIngredients((prev) => prev.filter((i) => i !== ingredient))
+    })
+  }
+
    return (
     <div>
       <h1>Cocktail-Bestellungen</h1>
@@ -158,6 +187,7 @@ function App() {
                 hasOpenOrder={hasOpenOrder}
                 orderFormRef={orderFormRef}
                 queueLength={openOrders.length}
+                unavailableIngredients={unavailableIngredients}
               />
             )
           }
@@ -166,7 +196,13 @@ function App() {
           path="/barkeeper"
           element={
             isBarkeeperAuthenticated ? (
-              <BarkeeperPage openOrders={openOrders} onMarkAsDone={handleMarkAsDone} />
+              <BarkeeperPage
+                openOrders={openOrders}
+                onMarkAsDone={handleMarkAsDone}
+                unavailableIngredients={unavailableIngredients}
+                onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
+                onMarkIngredientAvailable={handleMarkIngredientAvailable}
+              />
             ) : (
               <BarkeeperLogin onLogin={handleBarkeeperLogin} />
             )
