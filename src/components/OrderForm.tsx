@@ -1,10 +1,18 @@
 import { useState } from 'react'
+import type { FormEvent, ChangeEvent } from 'react'
+import type { OrderItem } from '../types'
 
-function OrderForm({ order, onSubmitOrder, hasOpenOrder }) {
+interface OrderFormProps {
+  order: OrderItem[]
+  onSubmitOrder: (note: string) => void
+  hasOpenOrder: boolean
+}
+
+function OrderForm({ order, onSubmitOrder, hasOpenOrder }: OrderFormProps) {
   const [note, setNote] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (hasOpenOrder) {
@@ -22,7 +30,7 @@ function OrderForm({ order, onSubmitOrder, hasOpenOrder }) {
         Anmerkung (optional):
         <textarea
           value={note}
-          onChange={(event) => setNote(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNote(event.target.value)}
         />
       </label>
       <button type="submit" className="btn btn-primary btn-block" disabled={order.length === 0}>

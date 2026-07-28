@@ -4,35 +4,35 @@ import LoginForm from './components/LoginForm'
 import BarkeeperLogin from './components/BarkeeperLogin'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
+import type { Cocktail } from './data/cocktails'
+import type { OrderItem, SubmittedOrder } from './types'
 
 const API_URL = `http://${window.location.hostname}:3001/api`
 
-function generateId() {
+function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }
 
 function App() {
-  
-  const [order, setOrder] = useState(() => {
+  const [order, setOrder] = useState<OrderItem[]>(() => {
     const saved = localStorage.getItem('order')
     return saved ? JSON.parse(saved) : []
   })
 
-
-  const [openOrders, setOpenOrders] = useState([])
-  const [unavailableIngredients, setUnavailableIngredients] = useState([])
+  const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
+  const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
 
   useEffect(() => {
     function fetchOpenOrders() {
       fetch(`${API_URL}/orders`)
         .then((res) => res.json())
-        .then((data) => setOpenOrders(data))
+        .then((data: SubmittedOrder[]) => setOpenOrders(data))
     }
 
     function fetchUnavailableIngredients() {
       fetch(`${API_URL}/unavailable-ingredients`)
         .then((res) => res.json())
-        .then((data) => setUnavailableIngredients(data))
+        .then((data: string[]) => setUnavailableIngredients(data))
     }
 
     fetchOpenOrders()
@@ -54,15 +54,15 @@ function App() {
     localStorage.setItem('order', JSON.stringify(order))
   }, [order])
 
-  const orderFormRef = useRef(null)
+  const orderFormRef = useRef<HTMLDivElement>(null)
 
-  function handleAddToOrder(cocktail) {
-    const orderItem = { ...cocktail, orderId: generateId() }
+  function handleAddToOrder(cocktail: Cocktail) {
+    const orderItem: OrderItem = { ...cocktail, orderId: generateId() }
     setOrder([orderItem])
     orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  function handleRemoveItem(orderId) {
+  function handleRemoveItem(orderId: string) {
     setOrder((prevOrder) => prevOrder.filter((item) => item.orderId !== orderId))
   }
 
@@ -78,7 +78,7 @@ function App() {
     previousHasOpenOrder.current = hasOpenOrder
   }, [hasOpenOrder])
 
-  function handleSubmitOrder(note) {
+  function handleSubmitOrder(note: string) {
     if (hasOpenOrder) return
 
     fetch(`${API_URL}/orders`, {
@@ -87,7 +87,7 @@ function App() {
       body: JSON.stringify({ name: currentUser, items: order, note }),
     })
       .then((res) => res.json())
-      .then((newOrder) => {
+      .then((newOrder: SubmittedOrder) => {
         setOpenOrders((prevOpenOrders) => [...prevOpenOrders, newOrder])
         setOrder([])
       })
@@ -97,14 +97,14 @@ function App() {
     () => sessionStorage.getItem('isBarkeeper') === 'true'
   )
 
-  function handleBarkeeperLogin(password) {
+  function handleBarkeeperLogin(password: string): Promise<boolean> {
     return fetch(`${API_URL}/barkeeper-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     })
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: { success: boolean }) => {
         if (data.success) {
           sessionStorage.setItem('isBarkeeper', 'true')
           setIsBarkeeperAuthenticated(true)
@@ -113,7 +113,7 @@ function App() {
       })
   }
 
-  function handleMarkAsDone(orderId) {
+  function handleMarkAsDone(orderId: string) {
     fetch(`${API_URL}/orders/${orderId}`, {
       method: 'DELETE',
     }).then(() => {
@@ -123,7 +123,7 @@ function App() {
     })
   }
 
-  function handleMarkIngredientUnavailable(ingredient) {
+  function handleMarkIngredientUnavailable(ingredient: string) {
     fetch(`${API_URL}/unavailable-ingredients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -133,7 +133,7 @@ function App() {
     })
   }
 
-  function handleMarkIngredientAvailable(ingredient) {
+  function handleMarkIngredientAvailable(ingredient: string) {
     fetch(`${API_URL}/unavailable-ingredients`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -143,7 +143,7 @@ function App() {
     })
   }
 
-   return (
+  return (
     <div>
       <h1>Cocktail-Bestellungen</h1>
 

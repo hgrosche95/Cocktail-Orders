@@ -1,7 +1,8 @@
 import cocktails from '../data/cocktails'
+import type { SubmittedOrder } from '../types'
 
-function getAllIngredients() {
-  const ingredients = new Set()
+function getAllIngredients(): string[] {
+  const ingredients = new Set<string>()
 
   for (const cocktail of cocktails) {
     for (const ingredient of cocktail.ingredients) {
@@ -12,13 +13,21 @@ function getAllIngredients() {
   return Array.from(ingredients).sort()
 }
 
+interface BarkeeperPageProps {
+  openOrders: SubmittedOrder[]
+  onMarkAsDone: (orderId: string) => void
+  unavailableIngredients: string[]
+  onMarkIngredientUnavailable: (ingredient: string) => void
+  onMarkIngredientAvailable: (ingredient: string) => void
+}
+
 function BarkeeperPage({
   openOrders,
   onMarkAsDone,
   unavailableIngredients,
   onMarkIngredientUnavailable,
   onMarkIngredientAvailable,
-}) {
+}: BarkeeperPageProps) {
   const allIngredients = getAllIngredients()
 
   return (

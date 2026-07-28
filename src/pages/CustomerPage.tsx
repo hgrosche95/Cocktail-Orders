@@ -1,6 +1,20 @@
+import type { RefObject } from 'react'
 import CocktailList from '../components/CocktailList'
 import OrderSummary from '../components/OrderSummary'
 import OrderForm from '../components/OrderForm'
+import type { Cocktail } from '../data/cocktails'
+import type { OrderItem } from '../types'
+
+interface CustomerPageProps {
+  order: OrderItem[]
+  onAddToOrder: (cocktail: Cocktail) => void
+  onRemoveItem: (orderId: string) => void
+  onSubmitOrder: (note: string) => void
+  hasOpenOrder: boolean
+  orderFormRef: RefObject<HTMLDivElement | null>
+  queueLength: number
+  unavailableIngredients: string[]
+}
 
 function CustomerPage({
   order,
@@ -11,14 +25,13 @@ function CustomerPage({
   orderFormRef,
   queueLength,
   unavailableIngredients,
-}) {
+}: CustomerPageProps) {
   return (
     <>
       <p className="queue-counter">
         🍹 {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
       </p>
       <CocktailList
-        order={order}
         onAddToOrder={onAddToOrder}
         unavailableIngredients={unavailableIngredients}
       />

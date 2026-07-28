@@ -1,21 +1,26 @@
 import { useState } from 'react'
 import cocktails from '../data/cocktails'
+import type { Cocktail } from '../data/cocktails'
 import CocktailCard from './CocktailCard'
 
-function groupByCategory(items) {
-  const groups = new Map()
+function groupByCategory(items: Cocktail[]): Map<string, Cocktail[]> {
+  const groups = new Map<string, Cocktail[]>()
 
   for (const item of items) {
-    if (!groups.has(item.category)) {
-      groups.set(item.category, [])
-    }
-    groups.get(item.category).push(item)
+    const group = groups.get(item.category) ?? []
+    group.push(item)
+    groups.set(item.category, group)
   }
 
   return groups
 }
 
-function CocktailList({ onAddToOrder, unavailableIngredients }) {
+interface CocktailListProps {
+  onAddToOrder: (cocktail: Cocktail) => void
+  unavailableIngredients: string[]
+}
+
+function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProps) {
   const availableCocktails = cocktails.filter(
     (cocktail) =>
       !cocktail.ingredients.some((ingredient) =>
@@ -28,10 +33,10 @@ function CocktailList({ onAddToOrder, unavailableIngredients }) {
 
   const [selectedCategory, setSelectedCategory] = useState('Alle')
 
-  const visibleCategories =
+  const visibleCategories: Map<string, Cocktail[]> =
     selectedCategory === 'Alle'
       ? categories
-      : new Map([[selectedCategory, categories.get(selectedCategory)]])
+      : new Map([[selectedCategory, categories.get(selectedCategory) ?? []]])
 
   return (
     <div>

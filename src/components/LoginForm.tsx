@@ -1,9 +1,14 @@
 import { useState } from 'react'
+import type { FormEvent, ChangeEvent } from 'react'
 
-function LoginForm({ onLogin }) {
+interface LoginFormProps {
+  onLogin: (name: string) => void
+}
+
+function LoginForm({ onLogin }: LoginFormProps) {
   const [name, setName] = useState('')
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (name.trim() === '') return
     onLogin(name)
@@ -16,7 +21,7 @@ function LoginForm({ onLogin }) {
         <input
           type="text"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setName(event.target.value)}
         />
       </label>
       <button type="submit" className="btn btn-primary btn-block">
