@@ -77,7 +77,7 @@ const cocktails = [
     id: 10,
     name: 'Whisky Sour',
     category: 'Sauer & Erfrischend',
-    ingredients: ['Bourbon', 'Zitronensaft', 'Zuckersirup', 'Eiweiß', 'Bitters'],
+    ingredients: ['Bourbon', 'Zitronensaft', 'Zuckersirup', 'Eiweiß', 'Bitter'],
     movie: 'Lost in Translation',
   },
 
@@ -104,7 +104,7 @@ const cocktails = [
     id: 13,
     name: 'El Presidente',
     category: 'Kräftig & Herb',
-    ingredients: ['Rum', 'Wermut', 'Orangenlikör', 'Bitters'],
+    ingredients: ['Rum', 'Wermut', 'Orangenlikör', 'Bitter'],
     description:
       'Seidig, leicht süß, lieblich vom Wermut, frisch und vielschichtig vom Geschmack, leicht würzig.',
     movie: 'The Lost City',
@@ -113,7 +113,7 @@ const cocktails = [
     id: 14,
     name: 'Manhattan',
     category: 'Kräftig & Herb',
-    ingredients: ['Rye Whiskey', 'Wermut', 'Bitters'],
+    ingredients: ['Rye Whiskey', 'Wermut', 'Bitter'],
     description:
       'Süßlich-herb, gut ausbalanciert und komplex, ein Klassiker aus gutem Grund.',
     movie: "Manche mögen's heiß",
@@ -147,14 +147,14 @@ const cocktails = [
     id: 18,
     name: 'Old Fashioned',
     category: 'Kräftig & Herb',
-    ingredients: ['Bourbon', 'Bitters', 'Zucker'],
+    ingredients: ['Bourbon', 'Bitter', 'Zucker'],
     movie: 'Mad Men',
   },
   {
     id: 19,
     name: 'Sazerac',
     category: 'Kräftig & Herb',
-    ingredients: ['Rye Whiskey', 'Zuckersirup', 'Absinth', 'Bitters'],
+    ingredients: ['Rye Whiskey', 'Zuckersirup', 'Absinth', 'Bitter'],
     movie: 'Live and Let Die',
   },
   {
