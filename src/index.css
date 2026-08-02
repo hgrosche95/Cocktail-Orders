@@ -365,8 +365,33 @@ p {
   margin: 0;
 }
 
-.barkeeper-order .order-items {
-  margin-bottom: 12px;
+.recipe-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.recipe-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.recipe-item:last-child {
+  border-bottom: none;
+}
+
+.recipe-ingredients {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.recipe-meta {
+  font-size: 13px;
+  color: var(--text);
+  margin: 2px 0;
 }
 
 .barkeeper-order .note {

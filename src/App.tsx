@@ -48,11 +48,21 @@ function App() {
     return () => socket.close()
   }, [])
 
-  const [currentUser, setCurrentUser] = useState('')
+  const [currentUser, setCurrentUser] = useState(
+    () => localStorage.getItem('currentUser') ?? ''
+  )
 
   useEffect(() => {
     localStorage.setItem('order', JSON.stringify(order))
   }, [order])
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', currentUser)
+    } else {
+      localStorage.removeItem('currentUser')
+    }
+  }, [currentUser])
 
   const orderFormRef = useRef<HTMLDivElement>(null)
 
@@ -74,6 +84,7 @@ function App() {
   useEffect(() => {
     if (previousHasOpenOrder.current && !hasOpenOrder) {
       setShowReadyNotification(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
     previousHasOpenOrder.current = hasOpenOrder
   }, [hasOpenOrder])

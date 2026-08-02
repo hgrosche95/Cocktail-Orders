@@ -9,12 +9,13 @@ notified as soon as their order is ready.
 
 ## Features
 
-- Guest login by name (no password, just an identifier for the session)
+- Guest login by name (no password; remembered on the device for next time)
 - Movie-themed cocktail menu, filterable by category
 - One-click order flow with an optional note, auto-scrolls to the order form
 - One open order per guest at a time, with clear feedback if a second one is attempted
 - Live queue counter showing guests how many orders are ahead of them
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
+- Barkeeper view shows the full recipe (ingredients with amounts, ice, garnish) for each ordered cocktail
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
 - Ready notification for the guest once the barkeeper marks their order as done
 - Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet)

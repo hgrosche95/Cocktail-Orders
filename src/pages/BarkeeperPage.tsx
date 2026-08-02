@@ -40,10 +40,26 @@ function BarkeeperPage({
           {openOrders.map((submittedOrder) => (
             <li key={submittedOrder.orderId} className="card barkeeper-order">
               <h3>{submittedOrder.name}</h3>
-              <ul className="order-items">
+              <ul className="recipe-list">
                 {submittedOrder.items.map((item) => (
-                  <li key={item.orderId} className="order-item">
-                    {item.name}
+                  <li key={item.orderId} className="recipe-item">
+                    <strong>{item.name}</strong>
+                    <ul className="recipe-ingredients">
+                      {item.recipe.ingredients.map((ingredient, index) => (
+                        <li key={index}>
+                          {ingredient.amountCl != null
+                            ? `${ingredient.amountCl} cl ${ingredient.name}`
+                            : ingredient.name}
+                          {ingredient.note && ` (${ingredient.note})`}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="recipe-meta">🧊 {item.recipe.ice}</p>
+                    <p className="recipe-meta">
+                      {item.recipe.servedWithIceCubes
+                        ? 'Mit Eiswürfeln im Glas servieren'
+                        : 'Ohne Eiswürfel im Glas servieren'}
+                    </p>
                   </li>
                 ))}
               </ul>
