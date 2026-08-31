@@ -9,7 +9,13 @@ function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
   return (
     <li className="card cocktail-card">
       <h3>{cocktail.name}</h3>
-      <p className="cocktail-ingredients">{cocktail.ingredients.join(' · ')}</p>
+      <ul className="cocktail-ingredient-list">
+        {cocktail.ingredients.map((ingredient) => (
+          <li key={ingredient} className="cocktail-ingredient-pill">
+            {ingredient}
+          </li>
+        ))}
+      </ul>
       {cocktail.description && (
         <p className="cocktail-description">{cocktail.description}</p>
       )}

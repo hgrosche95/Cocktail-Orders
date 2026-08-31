@@ -1,5 +1,11 @@
+import type { CSSProperties } from 'react'
 import cocktails from '../data/cocktails'
+import { getCategoryTheme } from '../data/categories'
 import type { SubmittedOrder } from '../types'
+
+function categoryStyle(color: string): CSSProperties {
+  return { '--cat-color': color } as CSSProperties
+}
 
 function getAllIngredients(): string[] {
   const ingredients = new Set<string>()
@@ -40,12 +46,37 @@ function BarkeeperPage({
           {openOrders.map((submittedOrder) => (
             <li key={submittedOrder.orderId} className="card barkeeper-order">
               <h3>{submittedOrder.name}</h3>
-              <ul className="order-items">
-                {submittedOrder.items.map((item) => (
-                  <li key={item.orderId} className="order-item">
-                    {item.name}
+              <ul className="recipe-list">
+                {submittedOrder.items.map((item) => {
+                  const theme = getCategoryTheme(item.category)
+                  return (
+                  <li key={item.orderId} className="recipe-item" style={categoryStyle(theme.color)}>
+                    <strong>
+                      {theme.icon} {item.name}
+                    </strong>
+                    <ul className="recipe-ingredients">
+                      {item.recipe.ingredients.map((ingredient, index) => (
+                        <li key={index}>
+                          {ingredient.amountCl != null ? (
+                            <>
+                              <span className="amount">{ingredient.amountCl} cl</span> {ingredient.name}
+                            </>
+                          ) : (
+                            ingredient.name
+                          )}
+                          {ingredient.note && ` (${ingredient.note})`}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="recipe-meta">🧊 {item.recipe.ice}</p>
+                    <p className="recipe-meta">
+                      {item.recipe.servedWithIceCubes
+                        ? 'Mit Eiswürfeln im Glas servieren'
+                        : 'Ohne Eiswürfel im Glas servieren'}
+                    </p>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
               {submittedOrder.note && <p className="note">Anmerkung: {submittedOrder.note}</p>}
               <button

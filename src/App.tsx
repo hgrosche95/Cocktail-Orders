@@ -48,11 +48,21 @@ function App() {
     return () => socket.close()
   }, [])
 
-  const [currentUser, setCurrentUser] = useState('')
+  const [currentUser, setCurrentUser] = useState(
+    () => localStorage.getItem('currentUser') ?? ''
+  )
 
   useEffect(() => {
     localStorage.setItem('order', JSON.stringify(order))
   }, [order])
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', currentUser)
+    } else {
+      localStorage.removeItem('currentUser')
+    }
+  }, [currentUser])
 
   const orderFormRef = useRef<HTMLDivElement>(null)
 
@@ -74,6 +84,7 @@ function App() {
   useEffect(() => {
     if (previousHasOpenOrder.current && !hasOpenOrder) {
       setShowReadyNotification(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
     previousHasOpenOrder.current = hasOpenOrder
   }, [hasOpenOrder])
@@ -145,11 +156,16 @@ function App() {
 
   return (
     <div>
-      <h1>Cocktail-Bestellungen</h1>
+      <header className="app-header">
+        <h1>🍸 Cocktail-Bestellungen</h1>
+        <p className="app-subtitle">Shaken, not stirred</p>
+      </header>
 
       {showReadyNotification && (
         <div className="notification">
-          <p>🍹 Deine Bestellung ist fertig!</p>
+          <p>
+            <span className="pop-emoji">🍹</span> Deine Bestellung ist fertig!
+          </p>
           <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
             Schließen
           </button>

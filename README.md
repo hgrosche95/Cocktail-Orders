@@ -19,6 +19,12 @@ notified as soon as their order is ready.
 - Ready notification for the guest once the barkeeper marks their order as done
 - Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet)
 
+## Screenshots
+
+| Guest menu | Barkeeper view |
+| --- | --- |
+| ![Guest-facing cocktail menu](./docs/screenshots/menu.png) | ![Barkeeper dashboard with open orders and ingredient toggles](./docs/screenshots/barkeeper.png) |
+
 ## Tech stack
 
 | Layer    | Technology                                                    |
