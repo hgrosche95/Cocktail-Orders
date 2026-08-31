@@ -16,7 +16,9 @@ describe('CocktailCard', () => {
     render(<CocktailCard cocktail={cocktail} onAddToOrder={() => {}} />)
 
     expect(screen.getByText('Mojito')).toBeInTheDocument()
-    expect(screen.getByText('Rum · Zucker · Limette · Minze · Soda')).toBeInTheDocument()
+    for (const ingredient of cocktail.ingredients) {
+      expect(screen.getByText(ingredient)).toBeInTheDocument()
+    }
     expect(screen.getByText('Ein erfrischender Drink.')).toBeInTheDocument()
     expect(screen.getByText(/Die Another Day/)).toBeInTheDocument()
   })

@@ -156,7 +156,10 @@ function App() {
 
   return (
     <div>
-      <h1>Cocktail-Bestellungen</h1>
+      <header className="app-header">
+        <h1>🍸 Cocktail-Bestellungen</h1>
+        <p className="app-subtitle">Shaken, not stirred</p>
+      </header>
 
       {showReadyNotification && (
         <div className="notification">
