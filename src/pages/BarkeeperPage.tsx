@@ -1,5 +1,11 @@
+import type { CSSProperties } from 'react'
 import cocktails from '../data/cocktails'
+import { getCategoryTheme } from '../data/categories'
 import type { SubmittedOrder } from '../types'
+
+function categoryStyle(color: string): CSSProperties {
+  return { '--cat-color': color } as CSSProperties
+}
 
 function getAllIngredients(): string[] {
   const ingredients = new Set<string>()
@@ -41,15 +47,23 @@ function BarkeeperPage({
             <li key={submittedOrder.orderId} className="card barkeeper-order">
               <h3>{submittedOrder.name}</h3>
               <ul className="recipe-list">
-                {submittedOrder.items.map((item) => (
-                  <li key={item.orderId} className="recipe-item">
-                    <strong>{item.name}</strong>
+                {submittedOrder.items.map((item) => {
+                  const theme = getCategoryTheme(item.category)
+                  return (
+                  <li key={item.orderId} className="recipe-item" style={categoryStyle(theme.color)}>
+                    <strong>
+                      {theme.icon} {item.name}
+                    </strong>
                     <ul className="recipe-ingredients">
                       {item.recipe.ingredients.map((ingredient, index) => (
                         <li key={index}>
-                          {ingredient.amountCl != null
-                            ? `${ingredient.amountCl} cl ${ingredient.name}`
-                            : ingredient.name}
+                          {ingredient.amountCl != null ? (
+                            <>
+                              <span className="amount">{ingredient.amountCl} cl</span> {ingredient.name}
+                            </>
+                          ) : (
+                            ingredient.name
+                          )}
                           {ingredient.note && ` (${ingredient.note})`}
                         </li>
                       ))}
@@ -61,7 +75,8 @@ function BarkeeperPage({
                         : 'Ohne Eiswürfel im Glas servieren'}
                     </p>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
               {submittedOrder.note && <p className="note">Anmerkung: {submittedOrder.note}</p>}
               <button

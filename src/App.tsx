@@ -163,7 +163,9 @@ function App() {
 
       {showReadyNotification && (
         <div className="notification">
-          <p>🍹 Deine Bestellung ist fertig!</p>
+          <p>
+            <span className="pop-emoji">🍹</span> Deine Bestellung ist fertig!
+          </p>
           <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
             Schließen
           </button>
