@@ -22,6 +22,22 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cocktail
+          POSTGRES_PASSWORD: cocktail
+          POSTGRES_DB: cocktail
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://cocktail:cocktail@localhost:5432/cocktail
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +48,9 @@ jobs:
           cache-dependency-path: server/package-lock.json
 
       - run: npm ci
+        working-directory: server
+
+      - run: npx prisma migrate deploy
         working-directory: server
 
       - run: npm run lint

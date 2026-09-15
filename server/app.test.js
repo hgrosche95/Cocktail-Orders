@@ -1,14 +1,24 @@
-import { describe, test, expect, beforeEach, vi } from 'vitest'
+import { describe, test, expect, beforeEach, afterAll, vi } from 'vitest'
 import request from 'supertest'
+import { prisma } from './prisma.js'
 import { createApp } from './app.js'
 
 function buildTestApp(overrides = {}) {
   return createApp({
-    dbPath: ':memory:',
+    prisma,
     barkeeperPassword: 'test-password',
     ...overrides,
   })
 }
+
+beforeEach(async () => {
+  await prisma.order.deleteMany()
+  await prisma.unavailableIngredient.deleteMany()
+})
+
+afterAll(async () => {
+  await prisma.$disconnect()
+})
 
 describe('GET /api/ping', () => {
   test('responds with status ok', async () => {

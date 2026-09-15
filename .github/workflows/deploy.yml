@@ -1,0 +1,146 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# id-token: write ermoeglicht den OIDC-Login gegen Azure (azure/login tauscht
+# das GitHub-OIDC-Token gegen ein kurzlebiges Azure-Access-Token, ohne dass
+# irgendwo ein langlebiger Client-Secret-Key als GitHub-Secret liegen muss).
+# packages: write wird fuer den Push des Backend-Images nach GHCR gebraucht.
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+env:
+  AZURE_RESOURCE_GROUP: cocktail-orders-dev-rg
+  AZURE_LOCATION: germanywestcentral
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/cocktail-orders-server
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- 1. Backend-Image bauen und nach GHCR pushen -------------------------
+      # Muss VOR dem Bicep-Deployment passieren: die Container App referenziert
+      # das Image ueber seinen Tag. Wuerde der Tag beim Deployment noch nicht
+      # existieren, wuerde die neue Revision beim Start fehlschlagen
+      # (Image-Pull-Error).
+      - name: In GitHub Container Registry einloggen
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backend-Image bauen und pushen
+        run: |
+          IMAGE_TAG="${IMAGE_NAME,,}:${{ github.sha }}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+          docker build -f server/Dockerfile -t "$IMAGE_TAG" .
+          docker push "$IMAGE_TAG"
+
+      # --- 2. Bei Azure einloggen (OIDC / Federated Credentials) ---------------
+      - name: Bei Azure einloggen
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resource Group sicherstellen
+        run: |
+          az group create \
+            --name "$AZURE_RESOURCE_GROUP" \
+            --location "$AZURE_LOCATION" \
+            --output none
+
+      # --- 3. Infrastruktur deployen (Bicep) ------------------------------------
+      # GHCR_PAT (nicht das ephemere GITHUB_TOKEN!) wird als Registry-Passwort
+      # in die Container App geschrieben, weil sie das Image ggf. Stunden/Tage
+      # spaeter aus dem Stillstand heraus erneut zieht (Scale-to-Zero) - da ist
+      # GITHUB_TOKEN laengst abgelaufen.
+      - name: Infrastruktur deployen
+        id: infra
+        # Secrets kommen ueber env: rein statt direkt per ${{ }} in den
+        # Bash-Befehl interpoliert zu werden - sonst koennten "$"-Zeichen im
+        # Secret-Wert (z. B. in einem Connection-String oder Passwort-Hash)
+        # von Bash als (leere) Variablen fehlinterpretiert werden.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BARKEEPER_PASSWORD: ${{ secrets.BARKEEPER_PASSWORD }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          OUTPUTS=$(az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json \
+            --parameters \
+              databaseUrl="$DATABASE_URL" \
+              barkeeperPassword="$BARKEEPER_PASSWORD" \
+              containerImage="$IMAGE_TAG" \
+              registryUsername="${{ github.actor }}" \
+              registryPassword="$GHCR_PAT" \
+            --query properties.outputs -o json)
+
+          echo "container_app_url=$(echo "$OUTPUTS" | jq -r '.containerAppUrl.value')" >> "$GITHUB_OUTPUT"
+          echo "static_web_app_name=$(echo "$OUTPUTS" | jq -r '.staticWebAppName.value')" >> "$GITHUB_OUTPUT"
+
+      # --- 3b. Datenbank-Migrationen anwenden -----------------------------------
+      # Neon ist standardmaessig oeffentlich erreichbar (kein IP-Firewall-
+      # Handshake wie bei Azure Postgres Flexible Server noetig), daher entfaellt
+      # das Oeffnen/Schliessen einer Firewall-Regel fuer den Runner.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - run: npm ci
+        working-directory: server
+
+      - name: Migrationen anwenden
+        working-directory: server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate deploy
+
+      # --- 4. Frontend bauen ------------------------------------------------------
+      # VITE_API_URL muss zur BUILD-Zeit gesetzt sein (landet im statischen
+      # JS-Bundle) - deshalb erst jetzt, nachdem wir die frisch deployte
+      # Container-App-URL aus Schritt 3 kennen.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Frontend bauen
+        env:
+          VITE_API_URL: ${{ steps.infra.outputs.container_app_url }}
+        run: npm run build
+
+      # --- 5. Frontend zur Static Web App deployen --------------------------------
+      - name: Deployment-Token abrufen
+        id: swa-token
+        run: |
+          TOKEN=$(az staticwebapp secrets list \
+            --name "${{ steps.infra.outputs.static_web_app_name }}" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Frontend deployen
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: dist
+          skip_app_build: true
