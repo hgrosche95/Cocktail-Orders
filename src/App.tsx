@@ -7,7 +7,12 @@ import BarkeeperPage from './pages/BarkeeperPage'
 import type { Cocktail } from './data/cocktails'
 import type { OrderItem, SubmittedOrder } from './types'
 
-const API_URL = `http://${window.location.hostname}:3001/api`
+// VITE_API_URL wird beim Produktions-Build gesetzt (Container-App-URL, https).
+// Ohne den Wert (lokale Entwicklung/LAN-Nutzung) zeigt die App weiterhin auf
+// Port 3001 desselben Hosts, von dem sie geladen wurde.
+const API_BASE = import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:3001`
+const API_URL = `${API_BASE}/api`
+const WS_URL = API_BASE.replace(/^http/, 'ws')
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
@@ -38,7 +43,7 @@ function App() {
     fetchOpenOrders()
     fetchUnavailableIngredients()
 
-    const socket = new WebSocket(`ws://${window.location.hostname}:3002`)
+    const socket = new WebSocket(WS_URL)
 
     socket.addEventListener('message', () => {
       fetchOpenOrders()

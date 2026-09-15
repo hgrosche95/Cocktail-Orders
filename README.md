@@ -17,7 +17,7 @@ notified as soon as their order is ready.
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
 - Ready notification for the guest once the barkeeper marks their order as done
-- Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet)
+- Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet), or deployed to Azure for access from anywhere
 
 ## Screenshots
 
@@ -30,7 +30,7 @@ notified as soon as their order is ready.
 | Layer    | Technology                                                    |
 | -------- | -------------------------------------------------------------- |
 | Frontend | React 19, Vite, React Router                                   |
-| Backend  | Node.js, Express, SQLite (`node:sqlite`), `ws`                  |
+| Backend  | Node.js, Express, Prisma + PostgreSQL, `ws`                     |
 | Testing  | Vitest, Testing Library (frontend), Vitest + Supertest (backend) |
 | CI       | GitHub Actions (lint, test, build on every push)                |
 
@@ -41,9 +41,16 @@ notified as soon as their order is ready.
 ├── server/
 │   ├── app.js              Express app + routes (importable, used by tests)
 │   ├── index.js             Entry point: starts the HTTP + WebSocket servers
+│   ├── prisma.js            Prisma Client singleton
+│   ├── prisma/schema.prisma Database schema + migrations
 │   ├── app.test.js          Backend API tests
+│   ├── Dockerfile            Backend container image
 │   └── .env.example         Template for required environment variables
-└── .github/workflows/ci.yml CI pipeline (lint, test, build)
+├── docker-compose.yml       Local PostgreSQL for development/testing
+├── infra/                   Bicep IaC (Container App + Static Web App)
+└── .github/workflows/
+    ├── ci.yml                CI pipeline (lint, test, build)
+    └── deploy.yml            Deploys to Azure on push to main
 ```
 
 Frontend and backend are two independent Node projects, each with its own
@@ -51,31 +58,47 @@ Frontend and backend are two independent Node projects, each with its own
 
 ## Getting started
 
-### 1. Install dependencies
+### 1. Start a local PostgreSQL database
+
+```bash
+docker compose up -d postgres
+```
+
+Starts Postgres in Docker, listening on `localhost:5433`.
+
+### 2. Install dependencies
 
 ```bash
 npm install                # frontend, from the project root
-cd server && npm install   # backend
+cd server && npm install   # backend; also runs `prisma generate`
 ```
 
-### 2. Configure the barkeeper password
+### 3. Configure environment variables
 
-The backend reads the barkeeper login password from an environment
-variable — it's never stored in the code. From the `server/` folder:
+The backend reads its config from environment variables — none of it is
+stored in the code. From the `server/` folder:
 
 ```bash
 cp .env.example .env
 ```
 
-Then edit `server/.env` and set your own password:
+Then edit `server/.env`:
 
 ```
 BARKEEPER_PASSWORD=your-password-here
+DATABASE_URL=postgresql://cocktail:cocktail@localhost:5433/cocktail
 ```
 
-`.env` is gitignored and never committed.
+`.env` is gitignored and never committed. The default `DATABASE_URL` matches
+the `docker-compose.yml` Postgres from step 1.
 
-### 3. Run both servers
+### 4. Apply database migrations
+
+```bash
+cd server && npx prisma migrate dev
+```
+
+### 5. Run both servers
 
 In one terminal (project root):
 
@@ -91,13 +114,12 @@ In a second terminal (`server/` folder):
 npm run dev
 ```
 
-Starts the Express API on port `3001` and the WebSocket server on port
-`3002`. Order data is persisted to `server/orders.db` (SQLite).
+Starts the Express API and WebSocket server together on port `3001`.
 
-### 4. Open the app
+### 6. Open the app
 
 - Customer view: `http://localhost:5173/`
-- Barkeeper view: `http://localhost:5173/barkeeper` (requires the password set in step 2)
+- Barkeeper view: `http://localhost:5173/barkeeper` (requires the password set in step 3)
 
 To use the app from other devices on the same Wi-Fi (e.g. guests' phones),
 open `http://<your-lan-ip>:5173` instead of `localhost` — the frontend
@@ -111,8 +133,9 @@ npm test          # frontend component tests (Vitest + Testing Library), from th
 cd server && npm test   # backend API tests (Vitest + Supertest)
 ```
 
-Backend tests run against an in-memory SQLite database (`:memory:`), so they
-never touch `server/orders.db`.
+Backend tests run against the local Postgres from `docker-compose.yml` and
+clear the `orders`/`unavailable_ingredients` tables before each test, so
+tests stay isolated from each other.
 
 ## Linting
 
@@ -124,7 +147,24 @@ cd server && npm run lint   # backend
 ## CI
 
 Every push runs `.github/workflows/ci.yml`, which lints, tests, and builds
-both the frontend and backend in parallel jobs.
+both the frontend and backend in parallel jobs (the backend job runs against
+a Postgres service container).
+
+## Deployment
+
+Every push to `main` runs `.github/workflows/deploy.yml`, which deploys to
+Azure:
+
+- **Frontend** → Azure Static Web Apps (Free tier)
+- **Backend** → Azure Container Apps (scale-to-zero), image built and pushed
+  to GHCR
+- **Database** → an external managed Postgres (e.g. [Neon](https://neon.tech))
+
+Infrastructure is defined as code in `infra/` (Bicep) and re-applied on every
+deploy. See `infra/main.bicep` and `.github/workflows/deploy.yml` for the
+full setup, including the required GitHub secrets
+(`AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/`AZURE_SUBSCRIPTION_ID` for OIDC login,
+`DATABASE_URL`, `BARKEEPER_PASSWORD`, `GHCR_PAT`).
 
 ## Contributing
 

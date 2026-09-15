@@ -1,33 +1,19 @@
 import express from 'express'
 import cors from 'cors'
-import { DatabaseSync } from 'node:sqlite'
 
-export function createApp({ dbPath = 'orders.db', barkeeperPassword, onChange = () => {} } = {}) {
+export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = () => {} } = {}) {
   const app = express()
-  const db = new DatabaseSync(dbPath)
 
-  app.use(cors())
+  // Ohne corsOrigin bleibt CORS offen (lokales Netzwerk: Gaeste greifen von
+  // wechselnden LAN-IPs zu, die vorab nicht bekannt sind). In der Produktion
+  // (Azure) wird corsOrigin auf die Static-Web-App-URL gesetzt.
+  app.use(cors(corsOrigin ? { origin: corsOrigin } : undefined))
   app.use(express.json())
 
   app.use((req, res, next) => {
     console.log(new Date().toISOString(), req.method, req.url)
     next()
   })
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS orders (
-      orderId TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      items TEXT NOT NULL,
-      note TEXT
-    )
-  `)
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS unavailable_ingredients (
-      ingredient TEXT PRIMARY KEY
-    )
-  `)
 
   app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok' })
@@ -43,60 +29,57 @@ export function createApp({ dbPath = 'orders.db', barkeeperPassword, onChange = 
     }
   })
 
-  app.get('/api/orders', (req, res) => {
-    const rows = db.prepare('SELECT * FROM orders').all()
+  app.get('/api/orders', async (req, res) => {
+    const rows = await prisma.order.findMany()
     const orders = rows.map((row) => ({
       orderId: row.orderId,
       name: row.name,
-      items: JSON.parse(row.items),
+      items: row.items,
       note: row.note,
     }))
     res.json(orders)
   })
 
-  app.post('/api/orders', (req, res) => {
+  app.post('/api/orders', async (req, res) => {
     const { name, items, note } = req.body
     const orderId = crypto.randomUUID()
 
-    db.prepare('INSERT INTO orders (orderId, name, items, note) VALUES (?, ?, ?, ?)').run(
-      orderId,
-      name,
-      JSON.stringify(items),
-      note
-    )
+    await prisma.order.create({ data: { orderId, name, items, note } })
 
     onChange()
     res.status(201).json({ orderId, name, items, note })
   })
 
-  app.delete('/api/orders/:id', (req, res) => {
+  app.delete('/api/orders/:id', async (req, res) => {
     const { id } = req.params
-    db.prepare('DELETE FROM orders WHERE orderId = ?').run(id)
+    await prisma.order.deleteMany({ where: { orderId: id } })
 
     onChange()
     res.status(204).end()
   })
 
-  app.get('/api/unavailable-ingredients', (req, res) => {
-    const rows = db.prepare('SELECT ingredient FROM unavailable_ingredients').all()
+  app.get('/api/unavailable-ingredients', async (req, res) => {
+    const rows = await prisma.unavailableIngredient.findMany()
     res.json(rows.map((row) => row.ingredient))
   })
 
-  app.post('/api/unavailable-ingredients', (req, res) => {
+  app.post('/api/unavailable-ingredients', async (req, res) => {
     const { ingredient } = req.body
 
-    db.prepare(
-      'INSERT OR IGNORE INTO unavailable_ingredients (ingredient) VALUES (?)'
-    ).run(ingredient)
+    await prisma.unavailableIngredient.upsert({
+      where: { ingredient },
+      create: { ingredient },
+      update: {},
+    })
 
     onChange()
     res.status(201).json({ ingredient })
   })
 
-  app.delete('/api/unavailable-ingredients', (req, res) => {
+  app.delete('/api/unavailable-ingredients', async (req, res) => {
     const { ingredient } = req.body
 
-    db.prepare('DELETE FROM unavailable_ingredients WHERE ingredient = ?').run(ingredient)
+    await prisma.unavailableIngredient.deleteMany({ where: { ingredient } })
 
     onChange()
     res.status(204).end()

@@ -12,9 +12,6 @@ dist
 dist-ssr
 *.local
 
-# SQLite-Datenbank (Laufzeitdaten, kein Quellcode)
-server/orders.db
-
 # Umgebungsvariablen / Secrets
 .env
 
