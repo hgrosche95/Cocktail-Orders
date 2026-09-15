@@ -1,4 +1,4 @@
-@description('Azure-Region. Static Web Apps sind nur in einer begrenzten Auswahl an Regionen verfügbar (z. B. westeurope).')
+@description('Azure-Region. Static Web Apps sind nur in einer begrenzten Auswahl an Regionen verfügbar. "westeurope" wurde fuer dieses Subscription/Account-Setup von Azure mit "region is currently not accepting new customers" abgelehnt, "eastus2" funktioniert (siehe main.parameters.json).')
 param location string
 
 @description('Basis-Name, aus dem der Ressourcenname abgeleitet wird, z. B. "cocktail-orders-dev".')

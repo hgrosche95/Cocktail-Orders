@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('Region für die Static Web App. Static Web Apps sind nur in wenigen Regionen verfügbar, deshalb ein eigener Parameter statt der allgemeinen "location".')
-param staticWebAppLocation string = 'westeurope'
+param staticWebAppLocation string = 'eastus2'
 
 @description('Basis-Name für alle Ressourcen, z. B. "cocktail-orders-dev". Fließt in global-eindeutige Namen (Static Web App) mit ein.')
 param namePrefix string
