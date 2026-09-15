@@ -2,8 +2,11 @@ import type { RefObject } from 'react'
 import CocktailList from '../components/CocktailList'
 import OrderSummary from '../components/OrderSummary'
 import OrderForm from '../components/OrderForm'
+import RatingPrompt from '../components/RatingPrompt'
+import OrderHistory from '../components/OrderHistory'
+import Recommendations from '../components/Recommendations'
 import type { Cocktail } from '../data/cocktails'
-import type { OrderItem } from '../types'
+import type { OrderItem, SubmittedOrder, Recommendation } from '../types'
 
 interface CustomerPageProps {
   order: OrderItem[]
@@ -14,6 +17,12 @@ interface CustomerPageProps {
   orderFormRef: RefObject<HTMLDivElement | null>
   queueLength: number
   unavailableIngredients: string[]
+  history: SubmittedOrder[]
+  ratings: Record<number, number>
+  recommendations: Recommendation[]
+  pendingRatingItem: { orderId: string; item: OrderItem } | null
+  onRateCocktail: (cocktailId: number, rating: number) => void
+  onDismissRatingPrompt: (orderId: string) => void
 }
 
 function CustomerPage({
@@ -25,12 +34,33 @@ function CustomerPage({
   orderFormRef,
   queueLength,
   unavailableIngredients,
+  history,
+  ratings,
+  recommendations,
+  pendingRatingItem,
+  onRateCocktail,
+  onDismissRatingPrompt,
 }: CustomerPageProps) {
   return (
     <>
       <p className="queue-counter">
         🍹 {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
       </p>
+
+      {pendingRatingItem && (
+        <RatingPrompt
+          cocktailName={pendingRatingItem.item.name}
+          onRate={(rating) => onRateCocktail(pendingRatingItem.item.id, rating)}
+          onDismiss={() => onDismissRatingPrompt(pendingRatingItem.orderId)}
+        />
+      )}
+
+      <Recommendations
+        recommendations={recommendations}
+        unavailableIngredients={unavailableIngredients}
+        onAddToOrder={onAddToOrder}
+      />
+
       <CocktailList
         onAddToOrder={onAddToOrder}
         unavailableIngredients={unavailableIngredients}
@@ -39,6 +69,8 @@ function CustomerPage({
       <div ref={orderFormRef}>
         <OrderForm order={order} onSubmitOrder={onSubmitOrder} hasOpenOrder={hasOpenOrder} />
       </div>
+
+      <OrderHistory history={history} ratings={ratings} onRate={onRateCocktail} />
     </>
   )
 }

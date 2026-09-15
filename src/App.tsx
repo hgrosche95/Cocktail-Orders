@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import LoginForm from './components/LoginForm'
 import BarkeeperLogin from './components/BarkeeperLogin'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
 import type { Cocktail } from './data/cocktails'
-import type { OrderItem, SubmittedOrder } from './types'
+import type { OrderItem, SubmittedOrder, Recommendation } from './types'
 
 // VITE_API_URL wird beim Produktions-Build gesetzt (Container-App-URL, https).
 // Ohne den Wert (lokale Entwicklung/LAN-Nutzung) zeigt die App weiterhin auf
@@ -26,6 +26,41 @@ function App() {
 
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
+  const [history, setHistory] = useState<SubmittedOrder[]>([])
+  const [ratings, setRatings] = useState<Record<number, number>>({})
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
+
+  const [currentUser, setCurrentUser] = useState(
+    () => localStorage.getItem('currentUser') ?? ''
+  )
+  const currentUserRef = useRef(currentUser)
+
+  useEffect(() => {
+    currentUserRef.current = currentUser
+  }, [currentUser])
+
+  const fetchHistory = useCallback((guest: string) => {
+    fetch(`${API_URL}/orders/history?guest=${encodeURIComponent(guest)}`)
+      .then((res) => res.json())
+      .then((data: SubmittedOrder[]) => setHistory(data))
+  }, [])
+
+  const fetchRatings = useCallback((guest: string) => {
+    fetch(`${API_URL}/ratings?guest=${encodeURIComponent(guest)}`)
+      .then((res) => res.json())
+      .then((data: { cocktailId: number; rating: number }[]) => {
+        const map: Record<number, number> = {}
+        for (const { cocktailId, rating } of data) map[cocktailId] = rating
+        setRatings(map)
+      })
+  }, [])
+
+  const fetchRecommendations = useCallback((guest: string) => {
+    fetch(`${API_URL}/recommendations?guest=${encodeURIComponent(guest)}`)
+      .then((res) => res.json())
+      .then((data: Recommendation[]) => setRecommendations(data))
+  }, [])
 
   useEffect(() => {
     function fetchOpenOrders() {
@@ -48,14 +83,26 @@ function App() {
     socket.addEventListener('message', () => {
       fetchOpenOrders()
       fetchUnavailableIngredients()
+
+      // Betrifft z.B. den Fall, dass der Barkeeper gerade diese Bestellung
+      // fertig markiert hat - die Historie muss das mitbekommen, damit der
+      // Bewertungs-Prompt fuer den neu abgeholten Cocktail erscheint.
+      if (currentUserRef.current) {
+        fetchHistory(currentUserRef.current)
+        fetchRatings(currentUserRef.current)
+        fetchRecommendations(currentUserRef.current)
+      }
     })
 
     return () => socket.close()
-  }, [])
+  }, [fetchHistory, fetchRatings, fetchRecommendations])
 
-  const [currentUser, setCurrentUser] = useState(
-    () => localStorage.getItem('currentUser') ?? ''
-  )
+  useEffect(() => {
+    if (!currentUser) return
+    fetchHistory(currentUser)
+    fetchRatings(currentUser)
+    fetchRecommendations(currentUser)
+  }, [currentUser, fetchHistory, fetchRatings, fetchRecommendations])
 
   useEffect(() => {
     localStorage.setItem('order', JSON.stringify(order))
@@ -130,14 +177,38 @@ function App() {
   }
 
   function handleMarkAsDone(orderId: string) {
-    fetch(`${API_URL}/orders/${orderId}`, {
-      method: 'DELETE',
+    fetch(`${API_URL}/orders/${orderId}/complete`, {
+      method: 'PATCH',
     }).then(() => {
       setOpenOrders((prevOpenOrders) =>
         prevOpenOrders.filter((o) => o.orderId !== orderId)
       )
     })
   }
+
+  function handleRateCocktail(cocktailId: number, rating: number) {
+    fetch(`${API_URL}/ratings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guestName: currentUser, cocktailId, rating }),
+    }).then(() => {
+      setRatings((prev) => ({ ...prev, [cocktailId]: rating }))
+      fetchRecommendations(currentUser)
+    })
+  }
+
+  function handleDismissRatingPrompt(orderId: string) {
+    setDismissedHistoryOrderId(orderId)
+  }
+
+  const latestCompletedOrder = history[0]
+  const pendingRatingItem =
+    latestCompletedOrder &&
+    latestCompletedOrder.orderId !== dismissedHistoryOrderId &&
+    latestCompletedOrder.items[0] &&
+    ratings[latestCompletedOrder.items[0].id] === undefined
+      ? { orderId: latestCompletedOrder.orderId, item: latestCompletedOrder.items[0] }
+      : null
 
   function handleMarkIngredientUnavailable(ingredient: string) {
     fetch(`${API_URL}/unavailable-ingredients`, {
@@ -209,6 +280,12 @@ function App() {
                 orderFormRef={orderFormRef}
                 queueLength={openOrders.length}
                 unavailableIngredients={unavailableIngredients}
+                history={history}
+                ratings={ratings}
+                recommendations={recommendations}
+                pendingRatingItem={pendingRatingItem}
+                onRateCocktail={handleRateCocktail}
+                onDismissRatingPrompt={handleDismissRatingPrompt}
               />
             )
           }

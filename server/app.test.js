@@ -14,6 +14,7 @@ function buildTestApp(overrides = {}) {
 beforeEach(async () => {
   await prisma.order.deleteMany()
   await prisma.unavailableIngredient.deleteMany()
+  await prisma.rating.deleteMany()
 })
 
 afterAll(async () => {
@@ -97,21 +98,21 @@ describe('orders', () => {
     expect(listResponse.body[0]).toMatchObject(newOrder)
   })
 
-  test('deletes an order by id', async () => {
+  test('completing an order removes it from the open list', async () => {
     const createResponse = await request(app)
       .post('/api/orders')
       .send({ name: 'Max', items: [], note: '' })
 
     const { orderId } = createResponse.body
 
-    const deleteResponse = await request(app).delete(`/api/orders/${orderId}`)
-    expect(deleteResponse.status).toBe(204)
+    const completeResponse = await request(app).patch(`/api/orders/${orderId}/complete`)
+    expect(completeResponse.status).toBe(204)
 
     const listResponse = await request(app).get('/api/orders')
     expect(listResponse.body).toEqual([])
   })
 
-  test('calls onChange after creating and deleting an order', async () => {
+  test('calls onChange after creating and completing an order', async () => {
     const onChange = vi.fn()
     app = buildTestApp({ onChange })
 
@@ -121,9 +122,51 @@ describe('orders', () => {
 
     expect(onChange).toHaveBeenCalledTimes(1)
 
-    await request(app).delete(`/api/orders/${createResponse.body.orderId}`)
+    await request(app).patch(`/api/orders/${createResponse.body.orderId}/complete`)
 
     expect(onChange).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('GET /api/orders/history', () => {
+  let app
+
+  beforeEach(() => {
+    app = buildTestApp()
+  })
+
+  test('is empty for a guest with no completed orders', async () => {
+    await request(app).post('/api/orders').send({ name: 'Max', items: [], note: '' })
+
+    const response = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  test('lists a guest completed order but not their still-open one', async () => {
+    const toComplete = await request(app)
+      .post('/api/orders')
+      .send({ name: 'Max', items: [{ id: 1, name: 'Cable Car' }], note: '' })
+    await request(app).patch(`/api/orders/${toComplete.body.orderId}/complete`)
+
+    await request(app).post('/api/orders').send({ name: 'Max', items: [], note: '' })
+
+    const response = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+
+    expect(response.body).toHaveLength(1)
+    expect(response.body[0].orderId).toBe(toComplete.body.orderId)
+  })
+
+  test('does not include another guest completed orders', async () => {
+    const anna = await request(app)
+      .post('/api/orders')
+      .send({ name: 'Anna', items: [], note: '' })
+    await request(app).patch(`/api/orders/${anna.body.orderId}/complete`)
+
+    const response = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+
+    expect(response.body).toEqual([])
   })
 })
 
@@ -171,5 +214,80 @@ describe('unavailable ingredients', () => {
 
     const listResponse = await request(app).get('/api/unavailable-ingredients')
     expect(listResponse.body).toEqual(['Rum'])
+  })
+})
+
+describe('ratings', () => {
+  let app
+
+  beforeEach(() => {
+    app = buildTestApp()
+  })
+
+  test('starts with no ratings for a guest', async () => {
+    const response = await request(app).get('/api/ratings').query({ guest: 'Max' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  test('rates a cocktail and lists it afterwards', async () => {
+    const postResponse = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Max', cocktailId: 1, rating: 5 })
+
+    expect(postResponse.status).toBe(201)
+
+    const listResponse = await request(app).get('/api/ratings').query({ guest: 'Max' })
+    expect(listResponse.body).toEqual([{ cocktailId: 1, rating: 5 }])
+  })
+
+  test('re-rating the same cocktail updates it instead of creating a duplicate', async () => {
+    await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 2 })
+    await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 5 })
+
+    const listResponse = await request(app).get('/api/ratings').query({ guest: 'Max' })
+    expect(listResponse.body).toEqual([{ cocktailId: 1, rating: 5 }])
+  })
+
+  test('rejects a rating outside the 1-5 range', async () => {
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Max', cocktailId: 1, rating: 6 })
+
+    expect(response.status).toBe(400)
+  })
+
+  test('rejects a non-integer rating', async () => {
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Max', cocktailId: 1, rating: 2.5 })
+
+    expect(response.status).toBe(400)
+  })
+})
+
+describe('GET /api/recommendations', () => {
+  let app
+
+  beforeEach(() => {
+    app = buildTestApp()
+  })
+
+  test('is empty for a guest with no ratings (cold start)', async () => {
+    const response = await request(app).get('/api/recommendations').query({ guest: 'Max' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
+  })
+
+  test('recommends a cocktail liked by a guest with the same taste', async () => {
+    await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 5 })
+    await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
+    await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 2, rating: 4 })
+
+    const response = await request(app).get('/api/recommendations').query({ guest: 'Max' })
+
+    expect(response.body).toEqual([{ cocktailId: 2, predictedRating: 4 }])
   })
 })

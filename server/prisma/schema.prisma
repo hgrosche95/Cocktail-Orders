@@ -8,10 +8,14 @@ datasource db {
 }
 
 model Order {
-  orderId String  @id
-  name    String
-  items   Json
-  note    String?
+  orderId     String    @id
+  name        String
+  items       Json
+  note        String?
+  // NULL = noch offen. War frueher ein harter DELETE beim Fertig-Markieren
+  // (siehe app.js) - jetzt ein Soft-Complete, damit Bestellhistorie fuers
+  // Rating/Empfehlungs-Feature erhalten bleibt.
+  completedAt DateTime?
 
   @@map("orders")
 }
@@ -20,4 +24,18 @@ model UnavailableIngredient {
   ingredient String @id
 
   @@map("unavailable_ingredients")
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  guestName  String
+  // Kein Fremdschluessel: Cocktails sind statische Frontend-Daten
+  // (src/data/cocktails.ts), nicht in der DB - cocktailId referenziert
+  // deren Cocktail.id.
+  cocktailId Int
+  rating     Int
+  updatedAt  DateTime @updatedAt
+
+  @@unique([guestName, cocktailId])
+  @@map("ratings")
 }

@@ -9,4 +9,10 @@ export interface SubmittedOrder {
   name: string
   items: OrderItem[]
   note: string
+  completedAt?: string
+}
+
+export interface Recommendation {
+  cocktailId: number
+  predictedRating: number
 }
