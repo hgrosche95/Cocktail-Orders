@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import { recommendCocktails } from './recommendations.js'
 
 export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = () => {} } = {}) {
   const app = express()
@@ -30,12 +31,28 @@ export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = ()
   })
 
   app.get('/api/orders', async (req, res) => {
-    const rows = await prisma.order.findMany()
+    const rows = await prisma.order.findMany({ where: { completedAt: null } })
     const orders = rows.map((row) => ({
       orderId: row.orderId,
       name: row.name,
       items: row.items,
       note: row.note,
+    }))
+    res.json(orders)
+  })
+
+  app.get('/api/orders/history', async (req, res) => {
+    const { guest } = req.query
+    const rows = await prisma.order.findMany({
+      where: { name: guest, completedAt: { not: null } },
+      orderBy: { completedAt: 'desc' },
+    })
+    const orders = rows.map((row) => ({
+      orderId: row.orderId,
+      name: row.name,
+      items: row.items,
+      note: row.note,
+      completedAt: row.completedAt,
     }))
     res.json(orders)
   })
@@ -50,9 +67,15 @@ export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = ()
     res.status(201).json({ orderId, name, items, note })
   })
 
-  app.delete('/api/orders/:id', async (req, res) => {
+  // War frueher ein DELETE (Bestellung wurde komplett geloescht). Jetzt ein
+  // Soft-Complete, damit die Bestellhistorie fuers Rating-/Empfehlungs-
+  // Feature erhalten bleibt.
+  app.patch('/api/orders/:id/complete', async (req, res) => {
     const { id } = req.params
-    await prisma.order.deleteMany({ where: { orderId: id } })
+    await prisma.order.updateMany({
+      where: { orderId: id },
+      data: { completedAt: new Date() },
+    })
 
     onChange()
     res.status(204).end()
@@ -83,6 +106,40 @@ export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = ()
 
     onChange()
     res.status(204).end()
+  })
+
+  app.get('/api/ratings', async (req, res) => {
+    const { guest } = req.query
+    const rows = await prisma.rating.findMany({ where: { guestName: guest } })
+    res.json(rows.map((row) => ({ cocktailId: row.cocktailId, rating: row.rating })))
+  })
+
+  app.post('/api/ratings', async (req, res) => {
+    const { guestName, cocktailId, rating } = req.body
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      res.status(400).json({ error: 'rating must be an integer between 1 and 5' })
+      return
+    }
+
+    await prisma.rating.upsert({
+      where: { guestName_cocktailId: { guestName, cocktailId } },
+      create: { guestName, cocktailId, rating },
+      update: { rating },
+    })
+
+    res.status(201).json({ guestName, cocktailId, rating })
+  })
+
+  // User-based Collaborative Filtering (siehe recommendations.js). Laedt
+  // bei dieser Datenmenge (wenige Gaeste/Cocktails) problemlos alle
+  // Bewertungen und berechnet die Empfehlung pro Anfrage in-memory statt
+  // sie vorab zu materialisieren.
+  app.get('/api/recommendations', async (req, res) => {
+    const { guest } = req.query
+    const ratings = await prisma.rating.findMany()
+    const recommendations = recommendCocktails({ ratings, guestName: guest })
+    res.json(recommendations)
   })
 
   return app
