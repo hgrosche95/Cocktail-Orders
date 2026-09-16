@@ -16,6 +16,8 @@ notified as soon as their order is ready.
 - Live queue counter showing guests how many orders are ahead of them
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
+- Free-text cocktail recommendation ("something bitter, no rum") powered by an LLM (Groq), matched against the actual menu
+- Guests can rate cocktails they've had; a "recommended for you" section suggests cocktails liked by guests with similar taste (collaborative filtering)
 - Ready notification for the guest once the barkeeper marks their order as done
 - Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet), or deployed to Azure for access from anywhere
 
@@ -87,10 +89,13 @@ Then edit `server/.env`:
 ```
 BARKEEPER_PASSWORD=your-password-here
 DATABASE_URL=postgresql://cocktail:cocktail@localhost:5433/cocktail
+GROQ_API_KEY=your-groq-api-key
 ```
 
 `.env` is gitignored and never committed. The default `DATABASE_URL` matches
-the `docker-compose.yml` Postgres from step 1.
+the `docker-compose.yml` Postgres from step 1. `GROQ_API_KEY` is only needed
+for the free-text recommendation feature — get a free key at
+[console.groq.com](https://console.groq.com); everything else works without it.
 
 ### 4. Apply database migrations
 
@@ -164,7 +169,7 @@ Infrastructure is defined as code in `infra/` (Bicep) and re-applied on every
 deploy. See `infra/main.bicep` and `.github/workflows/deploy.yml` for the
 full setup, including the required GitHub secrets
 (`AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/`AZURE_SUBSCRIPTION_ID` for OIDC login,
-`DATABASE_URL`, `BARKEEPER_PASSWORD`, `GHCR_PAT`).
+`DATABASE_URL`, `BARKEEPER_PASSWORD`, `GHCR_PAT`, `GROQ_API_KEY`).
 
 ## Contributing
 

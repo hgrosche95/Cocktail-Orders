@@ -1,8 +1,15 @@
 import express from 'express'
 import cors from 'cors'
 import { recommendCocktails } from './recommendations.js'
+import { recommendByText as defaultRecommendByText } from './groq.js'
 
-export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = () => {} } = {}) {
+export function createApp({
+  prisma,
+  barkeeperPassword,
+  corsOrigin,
+  onChange = () => {},
+  recommendByText = defaultRecommendByText,
+} = {}) {
   const app = express()
 
   // Ohne corsOrigin bleibt CORS offen (lokales Netzwerk: Gaeste greifen von
@@ -140,6 +147,26 @@ export function createApp({ prisma, barkeeperPassword, corsOrigin, onChange = ()
     const ratings = await prisma.rating.findMany()
     const recommendations = recommendCocktails({ ratings, guestName: guest })
     res.json(recommendations)
+  })
+
+  // Die Cocktail-Karte kommt vom Frontend mit (statt einer eigenen Kopie im
+  // Backend), damit hier keine zweite, potenziell veraltende Datenquelle
+  // entsteht - die Karte lebt bewusst nur in src/data/cocktails.ts.
+  app.post('/api/recommend-by-text', async (req, res) => {
+    const { text, cocktails } = req.body
+
+    if (typeof text !== 'string' || !text.trim() || !Array.isArray(cocktails)) {
+      res.status(400).json({ error: 'text and cocktails are required' })
+      return
+    }
+
+    try {
+      const cocktailIds = await recommendByText({ text, cocktails })
+      res.json(cocktailIds)
+    } catch (error) {
+      console.error('Groq-Anfrage fehlgeschlagen:', error)
+      res.status(502).json({ error: 'Empfehlung derzeit nicht verfügbar' })
+    }
   })
 
   return app

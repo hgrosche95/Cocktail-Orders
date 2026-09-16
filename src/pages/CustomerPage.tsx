@@ -5,6 +5,7 @@ import OrderForm from '../components/OrderForm'
 import RatingPrompt from '../components/RatingPrompt'
 import OrderHistory from '../components/OrderHistory'
 import Recommendations from '../components/Recommendations'
+import WishInput from '../components/WishInput'
 import type { Cocktail } from '../data/cocktails'
 import type { OrderItem, SubmittedOrder, Recommendation } from '../types'
 
@@ -23,6 +24,9 @@ interface CustomerPageProps {
   pendingRatingItem: { orderId: string; item: OrderItem } | null
   onRateCocktail: (cocktailId: number, rating: number) => void
   onDismissRatingPrompt: (orderId: string) => void
+  textRecommendations: Recommendation[]
+  isTextRecommending: boolean
+  onWishSubmit: (text: string) => void
 }
 
 function CustomerPage({
@@ -40,6 +44,9 @@ function CustomerPage({
   pendingRatingItem,
   onRateCocktail,
   onDismissRatingPrompt,
+  textRecommendations,
+  isTextRecommending,
+  onWishSubmit,
 }: CustomerPageProps) {
   return (
     <>
@@ -59,6 +66,14 @@ function CustomerPage({
         recommendations={recommendations}
         unavailableIngredients={unavailableIngredients}
         onAddToOrder={onAddToOrder}
+      />
+
+      <WishInput onSubmit={onWishSubmit} isLoading={isTextRecommending} />
+      <Recommendations
+        recommendations={textRecommendations}
+        unavailableIngredients={unavailableIngredients}
+        onAddToOrder={onAddToOrder}
+        title="🔮 Passend zu deinem Wunsch"
       />
 
       <CocktailList
