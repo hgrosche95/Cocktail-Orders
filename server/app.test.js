@@ -318,17 +318,20 @@ describe('POST /api/recommend-by-text', () => {
     expect(response.status).toBe(400)
   })
 
-  test('returns the ids from the recommender, given the catalog and the wish', async () => {
-    const recommendByText = vi.fn().mockResolvedValue([16])
+  test('returns the ids and note from the recommender, given the catalog and the wish', async () => {
+    const recommendByText = vi.fn().mockResolvedValue({ cocktailIds: [16], note: 'ohne Eis' })
     const app = buildTestApp({ recommendByText })
 
     const response = await request(app)
       .post('/api/recommend-by-text')
-      .send({ text: 'etwas Bitteres', cocktails: cocktailCatalog })
+      .send({ text: 'etwas Bitteres, ohne Eis', cocktails: cocktailCatalog })
 
     expect(response.status).toBe(200)
-    expect(response.body).toEqual([16])
-    expect(recommendByText).toHaveBeenCalledWith({ text: 'etwas Bitteres', cocktails: cocktailCatalog })
+    expect(response.body).toEqual({ cocktailIds: [16], note: 'ohne Eis' })
+    expect(recommendByText).toHaveBeenCalledWith({
+      text: 'etwas Bitteres, ohne Eis',
+      cocktails: cocktailCatalog,
+    })
   })
 
   test('responds with 502 when the recommender fails', async () => {

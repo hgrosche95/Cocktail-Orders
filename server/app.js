@@ -161,8 +161,8 @@ export function createApp({
     }
 
     try {
-      const cocktailIds = await recommendByText({ text, cocktails })
-      res.json(cocktailIds)
+      const result = await recommendByText({ text, cocktails })
+      res.json(result)
     } catch (error) {
       console.error('Groq-Anfrage fehlgeschlagen:', error)
       res.status(502).json({ error: 'Empfehlung derzeit nicht verfügbar' })
