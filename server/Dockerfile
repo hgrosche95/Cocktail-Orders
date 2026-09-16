@@ -27,12 +27,14 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 # startet - dafuer braucht es zur Laufzeit die Prisma-CLI (deshalb steht
 # 'prisma' in den dependencies statt devDependencies) sowie Schema und
 # Migrationsdateien.
+# *.js statt einzelner Dateinamen - sonst fehlt bei jedem neuen
+# Root-Modul (wie zuletzt recommendations.js und groq.js) automatisch
+# eine Zeile hier, und der Container crasht erst beim Start in Produktion.
+# .dockerignore haelt *.test.js aus dem Image raus.
 COPY --from=prune /app/node_modules ./node_modules
 COPY --from=prune /app/prisma ./prisma
 COPY --from=prune /app/package.json ./package.json
-COPY --from=prune /app/app.js ./app.js
-COPY --from=prune /app/index.js ./index.js
-COPY --from=prune /app/prisma.js ./prisma.js
+COPY --from=prune /app/*.js ./
 
 EXPOSE 3001
 CMD ["sh", "-c", "npx prisma migrate deploy && node index.js"]
