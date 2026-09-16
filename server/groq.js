@@ -37,7 +37,11 @@ export async function recommendByText({ text, cocktails }) {
 Karte:
 ${menu}
 
-Antworte ausschliesslich mit einem JSON-Objekt der Form {"cocktailIds": [zahl, ...]} mit den IDs der bis zu 5 am besten passenden Cocktails, absteigend nach Passung sortiert. Keine Erklaerung, kein Text ausserhalb des JSON.`,
+Antworte ausschliesslich mit einem JSON-Objekt der Form {"cocktailIds": [zahl, ...], "note": string oder null} mit den IDs der bis zu 5 am besten passenden Cocktails, absteigend nach Passung sortiert.
+
+"note" ist eine Zubereitungs-/Serviervorgabe, die der Gast zusaetzlich genannt hat (z.B. "ohne Eis", "extra stark", "wenig suess") - NUR wenn der Text wirklich eine solche Vorgabe enthaelt, sonst null. Trage hier NICHT den Grund fuer die Cocktail-Auswahl ein (z.B. "bitter" oder "fruchtig"), das ist bereits durch die Auswahl der cocktailIds abgedeckt.
+
+Keine Erklaerung, kein Text ausserhalb des JSON.`,
       },
       { role: 'user', content: text },
     ],
@@ -54,10 +58,13 @@ export function parseRecommendation(raw, cocktails) {
   try {
     parsed = JSON.parse(raw)
   } catch {
-    return []
+    return { cocktailIds: [], note: null }
   }
 
   const ids = Array.isArray(parsed.cocktailIds) ? parsed.cocktailIds : []
   const validIds = new Set(cocktails.map((c) => c.id))
-  return ids.filter((id) => validIds.has(id)).slice(0, 5)
+  const cocktailIds = ids.filter((id) => validIds.has(id)).slice(0, 5)
+  const note = typeof parsed.note === 'string' && parsed.note.trim() ? parsed.note.trim() : null
+
+  return { cocktailIds, note }
 }

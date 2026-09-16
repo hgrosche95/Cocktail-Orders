@@ -33,6 +33,7 @@ function App() {
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
   const [textRecommendations, setTextRecommendations] = useState<Recommendation[]>([])
   const [isTextRecommending, setIsTextRecommending] = useState(false)
+  const [wishNote, setWishNote] = useState('')
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -212,8 +213,28 @@ function App() {
       body: JSON.stringify({ text, cocktails }),
     })
       .then((res) => res.json())
-      .then((ids: number[]) => {
-        setTextRecommendations(ids.map((cocktailId) => ({ cocktailId, predictedRating: 0 })))
+      .then((result: { cocktailIds: number[]; note: string | null }) => {
+        // Nicht verfuegbare Cocktails rausfiltern, bevor entschieden wird, ob
+        // es "genau ein Treffer" ist - sonst koennte ein ausverkaufter
+        // Cocktail automatisch in die Bestellung wandern.
+        const availableCocktails = result.cocktailIds
+          .map((id) => cocktails.find((c) => c.id === id))
+          .filter((cocktail): cocktail is Cocktail => cocktail !== undefined)
+          .filter(
+            (cocktail) =>
+              !cocktail.ingredients.some((ingredient) => unavailableIngredients.includes(ingredient))
+          )
+
+        if (availableCocktails.length === 1) {
+          handleAddToOrder(availableCocktails[0])
+          setWishNote(result.note ?? '')
+          setTextRecommendations([])
+          return
+        }
+
+        setTextRecommendations(
+          availableCocktails.map((cocktail) => ({ cocktailId: cocktail.id, predictedRating: 0 }))
+        )
       })
       .catch(() => setTextRecommendations([]))
       .finally(() => setIsTextRecommending(false))
@@ -307,6 +328,7 @@ function App() {
                 textRecommendations={textRecommendations}
                 isTextRecommending={isTextRecommending}
                 onWishSubmit={handleWishSubmit}
+                wishNote={wishNote}
               />
             )
           }

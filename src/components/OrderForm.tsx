@@ -6,11 +6,23 @@ interface OrderFormProps {
   order: OrderItem[]
   onSubmitOrder: (note: string) => void
   hasOpenOrder: boolean
+  initialNote?: string
 }
 
-function OrderForm({ order, onSubmitOrder, hasOpenOrder }: OrderFormProps) {
-  const [note, setNote] = useState('')
+function OrderForm({ order, onSubmitOrder, hasOpenOrder, initialNote }: OrderFormProps) {
+  const [note, setNote] = useState(initialNote ?? '')
   const [errorMessage, setErrorMessage] = useState('')
+
+  // "State waehrend des Renderns anpassen" (React-Ersatz fuer
+  // getDerivedStateFromProps) statt setState in einem Effect: initialNote
+  // kommt z.B. von der Chat-Bestellung, wo die KI eine Zubereitungsvorgabe
+  // ("ohne Eis") aus dem Freitext erkannt hat - der Gast sieht/bearbeitet sie
+  // hier ganz normal weiter, bevor er abschickt.
+  const [prevInitialNote, setPrevInitialNote] = useState(initialNote)
+  if (initialNote !== prevInitialNote) {
+    setPrevInitialNote(initialNote)
+    if (initialNote) setNote(initialNote)
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

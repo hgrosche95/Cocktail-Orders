@@ -16,7 +16,7 @@ notified as soon as their order is ready.
 - Live queue counter showing guests how many orders are ahead of them
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
-- Free-text cocktail recommendation ("something bitter, no rum") powered by an LLM (Groq), matched against the actual menu
+- Free-text cocktail ordering ("something bitter, no rum, without ice") powered by an LLM (Groq): a clear single match (plus any serving note like "no ice") goes straight into the order form to review and confirm; an ambiguous wish shows a pick-list instead
 - Guests can rate cocktails they've had; a "recommended for you" section suggests cocktails liked by guests with similar taste (collaborative filtering)
 - Ready notification for the guest once the barkeeper marks their order as done
 - Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet), or deployed to Azure for access from anywhere

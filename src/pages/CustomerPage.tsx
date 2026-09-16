@@ -27,6 +27,7 @@ interface CustomerPageProps {
   textRecommendations: Recommendation[]
   isTextRecommending: boolean
   onWishSubmit: (text: string) => void
+  wishNote: string
 }
 
 function CustomerPage({
@@ -47,6 +48,7 @@ function CustomerPage({
   textRecommendations,
   isTextRecommending,
   onWishSubmit,
+  wishNote,
 }: CustomerPageProps) {
   return (
     <>
@@ -82,7 +84,12 @@ function CustomerPage({
       />
       <OrderSummary order={order} onRemoveItem={onRemoveItem} />
       <div ref={orderFormRef}>
-        <OrderForm order={order} onSubmitOrder={onSubmitOrder} hasOpenOrder={hasOpenOrder} />
+        <OrderForm
+          order={order}
+          onSubmitOrder={onSubmitOrder}
+          hasOpenOrder={hasOpenOrder}
+          initialNote={wishNote}
+        />
       </div>
 
       <OrderHistory history={history} ratings={ratings} onRate={onRateCocktail} />
