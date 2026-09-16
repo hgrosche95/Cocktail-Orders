@@ -7,6 +7,8 @@ barkeeper view shows all open orders live and lets the barkeeper mark
 ingredients as out of stock (hiding cocktails that need them). Guests are
 notified as soon as their order is ready.
 
+**Live:** https://kind-ground-07fd6390f.6.azurestaticapps.net
+
 ## Features
 
 - Guest login by name (no password, just an identifier for the session)
@@ -31,8 +33,9 @@ notified as soon as their order is ready.
 
 | Layer    | Technology                                                    |
 | -------- | -------------------------------------------------------------- |
-| Frontend | React 19, Vite, React Router                                   |
+| Frontend | React 19, TypeScript, Vite, React Router                        |
 | Backend  | Node.js, Express, Prisma + PostgreSQL, `ws`                     |
+| AI       | [Groq](https://groq.com) (free tier) via the OpenAI SDK, for the free-text wish feature |
 | Testing  | Vitest, Testing Library (frontend), Vitest + Supertest (backend) |
 | CI       | GitHub Actions (lint, test, build on every push)                |
 
@@ -45,6 +48,8 @@ notified as soon as their order is ready.
 │   ├── index.js             Entry point: starts the HTTP + WebSocket servers
 │   ├── prisma.js            Prisma Client singleton
 │   ├── prisma/schema.prisma Database schema + migrations
+│   ├── recommendations.js   Collaborative filtering (ratings → suggestions)
+│   ├── groq.js               Free-text wish → cocktail match, via Groq
 │   ├── app.test.js          Backend API tests
 │   ├── Dockerfile            Backend container image
 │   └── .env.example         Template for required environment variables
