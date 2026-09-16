@@ -28,6 +28,7 @@ interface CustomerPageProps {
   isTextRecommending: boolean
   onWishSubmit: (text: string) => void
   wishNote: string
+  isWishFeatureDisabled: boolean
 }
 
 function CustomerPage({
@@ -49,6 +50,7 @@ function CustomerPage({
   isTextRecommending,
   onWishSubmit,
   wishNote,
+  isWishFeatureDisabled,
 }: CustomerPageProps) {
   return (
     <>
@@ -70,7 +72,11 @@ function CustomerPage({
         onAddToOrder={onAddToOrder}
       />
 
-      <WishInput onSubmit={onWishSubmit} isLoading={isTextRecommending} />
+      <WishInput
+        onSubmit={onWishSubmit}
+        isLoading={isTextRecommending}
+        isDisabled={isWishFeatureDisabled}
+      />
       <Recommendations
         recommendations={textRecommendations}
         unavailableIngredients={unavailableIngredients}

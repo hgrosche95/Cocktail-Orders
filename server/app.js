@@ -165,6 +165,16 @@ export function createApp({
       res.json(result)
     } catch (error) {
       console.error('Groq-Anfrage fehlgeschlagen:', error)
+
+      // Groq/OpenAI-SDK setzt bei HTTP 429 (Rate-/Tageslimit erreicht) die
+      // .status-Property auf 429 - eigener Fehlercode dafuer, damit das
+      // Frontend das Feature gezielt deaktivieren kann statt jeden Fehler
+      // gleich zu behandeln.
+      if (error?.status === 429) {
+        res.status(429).json({ error: 'rate_limited' })
+        return
+      }
+
       res.status(502).json({ error: 'Empfehlung derzeit nicht verfügbar' })
     }
   })

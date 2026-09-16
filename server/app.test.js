@@ -344,4 +344,17 @@ describe('POST /api/recommend-by-text', () => {
 
     expect(response.status).toBe(502)
   })
+
+  test('responds with 429 and a machine-readable code when Groq is rate-limited', async () => {
+    const rateLimitError = Object.assign(new Error('Rate limit reached'), { status: 429 })
+    const recommendByText = vi.fn().mockRejectedValue(rateLimitError)
+    const app = buildTestApp({ recommendByText })
+
+    const response = await request(app)
+      .post('/api/recommend-by-text')
+      .send({ text: 'etwas Bitteres', cocktails: cocktailCatalog })
+
+    expect(response.status).toBe(429)
+    expect(response.body).toEqual({ error: 'rate_limited' })
+  })
 })

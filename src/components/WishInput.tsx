@@ -4,14 +4,15 @@ import type { FormEvent, ChangeEvent } from 'react'
 interface WishInputProps {
   onSubmit: (text: string) => void
   isLoading: boolean
+  isDisabled?: boolean
 }
 
-function WishInput({ onSubmit, isLoading }: WishInputProps) {
+function WishInput({ onSubmit, isLoading, isDisabled = false }: WishInputProps) {
   const [text, setText] = useState('')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!text.trim()) return
+    if (isDisabled || !text.trim()) return
     onSubmit(text)
   }
 
@@ -24,11 +25,15 @@ function WishInput({ onSubmit, isLoading }: WishInputProps) {
           value={text}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setText(event.target.value)}
           placeholder="z. B. etwas Fruchtiges, nicht zu stark"
+          disabled={isDisabled}
         />
       </label>
-      <button type="submit" className="btn btn-primary btn-block" disabled={isLoading}>
-        {isLoading ? 'Wird gesucht …' : 'Vorschläge finden'}
+      <button type="submit" className="btn btn-primary btn-block" disabled={isLoading || isDisabled}>
+        {isDisabled ? 'Gerade nicht verfügbar' : isLoading ? 'Wird gesucht …' : 'Vorschläge finden'}
       </button>
+      {isDisabled && (
+        <p className="error-message">Gerade nicht verfügbar — nutz einfach die Karte.</p>
+      )}
     </form>
   )
 }
