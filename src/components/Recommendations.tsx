@@ -7,12 +7,14 @@ interface RecommendationsProps {
   recommendations: Recommendation[]
   unavailableIngredients: string[]
   onAddToOrder: (cocktail: Cocktail) => void
+  title?: string
 }
 
 function Recommendations({
   recommendations,
   unavailableIngredients,
   onAddToOrder,
+  title = '✨ Für dich empfohlen',
 }: RecommendationsProps) {
   const recommendedCocktails = recommendations
     .map((rec) => cocktails.find((cocktail) => cocktail.id === rec.cocktailId))
@@ -26,7 +28,7 @@ function Recommendations({
 
   return (
     <section className="cocktail-category recommendations">
-      <h2>✨ Für dich empfohlen</h2>
+      <h2>{title}</h2>
       <ul className="cocktail-grid">
         {recommendedCocktails.map((cocktail) => (
           <CocktailCard key={cocktail.id} cocktail={cocktail} onAddToOrder={onAddToOrder} />

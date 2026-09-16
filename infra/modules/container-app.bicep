@@ -25,6 +25,10 @@ param databaseUrl string
 @secure()
 param barkeeperPassword string
 
+@description('API-Key für Groq (Freitext-Empfehlung).')
+@secure()
+param groqApiKey string
+
 @description('Ursprung (Origin), den das Backend per CORS zulässt, z. B. https://<static-web-app>.azurestaticapps.net.')
 param corsOrigin string
 
@@ -110,6 +114,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'barkeeper-password'
           value: barkeeperPassword
         }
+        {
+          name: 'groq-api-key'
+          value: groqApiKey
+        }
       ]
     }
     template: {
@@ -127,6 +135,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'BARKEEPER_PASSWORD', secretRef: 'barkeeper-password' }
+            { name: 'GROQ_API_KEY', secretRef: 'groq-api-key' }
             { name: 'CORS_ORIGIN', value: corsOrigin }
             { name: 'PORT', value: '3001' }
           ]

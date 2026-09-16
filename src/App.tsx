@@ -4,6 +4,7 @@ import LoginForm from './components/LoginForm'
 import BarkeeperLogin from './components/BarkeeperLogin'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
+import cocktails from './data/cocktails'
 import type { Cocktail } from './data/cocktails'
 import type { OrderItem, SubmittedOrder, Recommendation } from './types'
 
@@ -30,6 +31,8 @@ function App() {
   const [ratings, setRatings] = useState<Record<number, number>>({})
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
+  const [textRecommendations, setTextRecommendations] = useState<Recommendation[]>([])
+  const [isTextRecommending, setIsTextRecommending] = useState(false)
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -201,6 +204,21 @@ function App() {
     setDismissedHistoryOrderId(orderId)
   }
 
+  function handleWishSubmit(text: string) {
+    setIsTextRecommending(true)
+    fetch(`${API_URL}/recommend-by-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, cocktails }),
+    })
+      .then((res) => res.json())
+      .then((ids: number[]) => {
+        setTextRecommendations(ids.map((cocktailId) => ({ cocktailId, predictedRating: 0 })))
+      })
+      .catch(() => setTextRecommendations([]))
+      .finally(() => setIsTextRecommending(false))
+  }
+
   const latestCompletedOrder = history[0]
   const pendingRatingItem =
     latestCompletedOrder &&
@@ -286,6 +304,9 @@ function App() {
                 pendingRatingItem={pendingRatingItem}
                 onRateCocktail={handleRateCocktail}
                 onDismissRatingPrompt={handleDismissRatingPrompt}
+                textRecommendations={textRecommendations}
+                isTextRecommending={isTextRecommending}
+                onWishSubmit={handleWishSubmit}
               />
             )
           }

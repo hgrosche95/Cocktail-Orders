@@ -27,6 +27,10 @@ param databaseUrl string
 @secure()
 param barkeeperPassword string
 
+@description('API-Key für Groq (Freitext-Empfehlung).')
+@secure()
+param groqApiKey string
+
 module staticWebApp 'modules/static-web-app.bicep' = {
   name: 'static-web-app-deployment'
   params: {
@@ -45,6 +49,7 @@ module containerApp 'modules/container-app.bicep' = {
     registryPassword: registryPassword
     databaseUrl: databaseUrl
     barkeeperPassword: barkeeperPassword
+    groqApiKey: groqApiKey
     corsOrigin: 'https://${staticWebApp.outputs.staticWebAppDefaultHostname}'
   }
 }

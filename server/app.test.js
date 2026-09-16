@@ -291,3 +291,54 @@ describe('GET /api/recommendations', () => {
     expect(response.body).toEqual([{ cocktailId: 2, predictedRating: 4 }])
   })
 })
+
+describe('POST /api/recommend-by-text', () => {
+  const cocktailCatalog = [
+    { id: 1, name: 'Cable Car', category: 'Sauer & Erfrischend', ingredients: ['Rum'] },
+    { id: 16, name: 'Negroni', category: 'Kräftig & Herb', ingredients: ['Gin', 'Campari', 'Wermut'] },
+  ]
+
+  test('rejects a missing text', async () => {
+    const app = buildTestApp()
+
+    const response = await request(app)
+      .post('/api/recommend-by-text')
+      .send({ cocktails: cocktailCatalog })
+
+    expect(response.status).toBe(400)
+  })
+
+  test('rejects a missing cocktail catalog', async () => {
+    const app = buildTestApp()
+
+    const response = await request(app)
+      .post('/api/recommend-by-text')
+      .send({ text: 'etwas Bitteres' })
+
+    expect(response.status).toBe(400)
+  })
+
+  test('returns the ids from the recommender, given the catalog and the wish', async () => {
+    const recommendByText = vi.fn().mockResolvedValue([16])
+    const app = buildTestApp({ recommendByText })
+
+    const response = await request(app)
+      .post('/api/recommend-by-text')
+      .send({ text: 'etwas Bitteres', cocktails: cocktailCatalog })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([16])
+    expect(recommendByText).toHaveBeenCalledWith({ text: 'etwas Bitteres', cocktails: cocktailCatalog })
+  })
+
+  test('responds with 502 when the recommender fails', async () => {
+    const recommendByText = vi.fn().mockRejectedValue(new Error('Groq down'))
+    const app = buildTestApp({ recommendByText })
+
+    const response = await request(app)
+      .post('/api/recommend-by-text')
+      .send({ text: 'etwas Bitteres', cocktails: cocktailCatalog })
+
+    expect(response.status).toBe(502)
+  })
+})
