@@ -34,6 +34,10 @@ function App() {
   const [textRecommendations, setTextRecommendations] = useState<Recommendation[]>([])
   const [isTextRecommending, setIsTextRecommending] = useState(false)
   const [wishNote, setWishNote] = useState('')
+  // Nur fuer die aktuelle Sitzung (kein localStorage) - bei Neuladen der
+  // Seite wird es einfach erneut versucht. Absichtlich einfach gehalten,
+  // siehe Besprechung.
+  const [isWishFeatureDisabled, setIsWishFeatureDisabled] = useState(false)
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -212,8 +216,19 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, cocktails }),
     })
-      .then((res) => res.json())
-      .then((result: { cocktailIds: number[]; note: string | null }) => {
+      .then((res) => {
+        // Groq-Tages-/Ratenlimit erreicht (siehe app.js) - Feature fuer den
+        // Rest dieser Sitzung deaktivieren statt bei jedem weiteren Versuch
+        // erneut ins Leere zu laufen.
+        if (res.status === 429) {
+          setIsWishFeatureDisabled(true)
+          return null
+        }
+        return res.json()
+      })
+      .then((result: { cocktailIds: number[]; note: string | null } | null) => {
+        if (!result) return
+
         // Nicht verfuegbare Cocktails rausfiltern, bevor entschieden wird, ob
         // es "genau ein Treffer" ist - sonst koennte ein ausverkaufter
         // Cocktail automatisch in die Bestellung wandern.
@@ -329,6 +344,7 @@ function App() {
                 isTextRecommending={isTextRecommending}
                 onWishSubmit={handleWishSubmit}
                 wishNote={wishNote}
+                isWishFeatureDisabled={isWishFeatureDisabled}
               />
             )
           }
