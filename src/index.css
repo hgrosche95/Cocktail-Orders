@@ -1,27 +1,30 @@
+/* Noir Speakeasy x Art Deco: dunkles Smaragdgrün + Gold statt hellem
+   Lila-Theme. Ein bewusst einziges, dunkles Erscheinungsbild - kein
+   separates Hell-Theme mehr, daher kein prefers-color-scheme-Override. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --card-bg: #faf9fb;
-  --border: #e5e4e7;
-  --accent: #aa3bff;
-  --accent-2: #ff6b9d;
-  --accent-text: #fff;
-  --success: #1a9d5c;
-  --success-text: #fff;
-  --danger: #c0392b;
-  --danger-bg: #fdecea;
+  --text: #b8ae9e;
+  --text-h: #f3ead9;
+  --bg: #0b2620;
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --border: rgba(207, 166, 70, 0.35);
+  --accent: #cfa646;
+  --accent-2: #e6c169;
+  --accent-text: #0b2620;
+  --success: #7fb88f;
+  --success-text: #0b2620;
+  --danger: #e2725a;
+  --danger-bg: rgba(226, 114, 90, 0.14);
 
-  --shadow-sm: 0 1px 3px rgba(20, 10, 30, 0.07), 0 1px 2px rgba(20, 10, 30, 0.05);
-  --shadow-md: 0 10px 28px rgba(20, 10, 30, 0.12), 0 3px 10px rgba(20, 10, 30, 0.07);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.3);
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --sans: 'IBM Plex Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   --mono: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -31,26 +34,6 @@
 
   @media (max-width: 1024px) {
     font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --card-bg: #1e1f27;
-    --border: #2e303a;
-    --accent: #c084fc;
-    --accent-2: #f9a8d4;
-    --accent-text: #16171d;
-    --success: #34d399;
-    --success-text: #16171d;
-    --danger: #f87171;
-    --danger-bg: #3a2323;
-
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.55), 0 3px 10px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -90,29 +73,14 @@ body {
 body::before {
   content: '';
   position: fixed;
-  inset: -20%;
+  inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(600px 420px at 18% 8%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
-    radial-gradient(520px 420px at 82% 2%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 60%);
-  filter: blur(50px);
-  animation: aurora-drift 20s ease-in-out infinite alternate;
-}
-
-@keyframes aurora-drift {
-  from {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  to {
-    transform: translate(-3%, 3%) rotate(5deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body::before {
-    animation: none;
-  }
+  background: radial-gradient(
+    700px 480px at 50% -8%,
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    transparent 70%
+  );
 }
 
 #root {
@@ -137,12 +105,9 @@ h3 {
 
 h1 {
   font-size: 32px;
-  letter-spacing: -1px;
+  letter-spacing: 0.3px;
   margin: 0;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  color: var(--text-h);
 
   @media (max-width: 1024px) {
     font-size: 26px;
@@ -153,7 +118,8 @@ h1 {
   margin: 4px 0 0;
   font-size: 14px;
   font-style: italic;
-  color: var(--text);
+  letter-spacing: 0.3px;
+  color: var(--accent);
 }
 
 h2 {
@@ -194,7 +160,7 @@ p {
   padding: 4px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 3px;
 }
 
 .tab {
@@ -203,7 +169,7 @@ p {
   padding: 10px 12px;
   text-decoration: none;
   color: var(--text);
-  border-radius: 8px;
+  border-radius: 2px;
   font-weight: 500;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -226,7 +192,7 @@ p {
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 3px;
   padding: 16px;
   margin-bottom: 16px;
   box-shadow: var(--shadow-sm);
@@ -240,7 +206,7 @@ p {
   justify-content: center;
   font: inherit;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 3px;
   border: 1px solid transparent;
   padding: 12px 18px;
   min-height: 44px;
@@ -352,7 +318,7 @@ p {
   padding: 10px 12px;
   font: inherit;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 3px;
   background: var(--bg);
   color: var(--text-h);
   transition: outline-color 0.15s ease, border-color 0.15s ease;
@@ -379,7 +345,7 @@ p {
   gap: 12px;
   background: var(--success);
   color: var(--success-text);
-  border-radius: 10px;
+  border-radius: 3px;
   padding: 14px 16px;
   margin-bottom: 16px;
   box-shadow: var(--shadow-md);
@@ -436,7 +402,7 @@ p {
 .error-message {
   background: var(--danger-bg);
   color: var(--danger);
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 10px 12px;
   margin-top: 12px;
   font-size: 15px;
@@ -483,7 +449,7 @@ p {
 .filter-chip.active {
   background: var(--cat-color, var(--accent));
   border-color: var(--cat-color, var(--accent));
-  color: #fff;
+  color: var(--accent-text);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--cat-color, var(--accent)) 35%, transparent);
 }
 
@@ -502,7 +468,6 @@ p {
 .cocktail-card {
   display: flex;
   flex-direction: column;
-  border-left: 4px solid var(--cat-color, var(--accent));
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -543,7 +508,7 @@ p {
   color: var(--text);
   padding-top: 8px;
   margin: 4px 0 12px;
-  border-top: 1px dashed var(--border);
+  border-top: 1px solid var(--border);
 }
 
 /* Order summary */
@@ -585,7 +550,7 @@ p {
   gap: 6px;
   padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 3px;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -619,8 +584,7 @@ p {
 .recipe-item {
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--cat-color, var(--accent));
-  border-radius: 8px;
+  border-radius: 3px;
   background: var(--bg);
 }
 
@@ -647,7 +611,7 @@ p {
 .barkeeper-order .note {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 8px 10px;
   font-size: 15px;
 }
