@@ -6,6 +6,7 @@ import RatingPrompt from '../components/RatingPrompt'
 import OrderHistory from '../components/OrderHistory'
 import Recommendations from '../components/Recommendations'
 import WishInput from '../components/WishInput'
+import HelpGuide from '../components/HelpGuide'
 import type { Cocktail } from '../data/cocktails'
 import type { OrderItem, SubmittedOrder, Recommendation } from '../types'
 
@@ -54,9 +55,12 @@ function CustomerPage({
 }: CustomerPageProps) {
   return (
     <>
-      <p className="queue-counter">
-        🍹 {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
-      </p>
+      <div className="queue-row">
+        <p className="queue-counter">
+          🍹 {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
+        </p>
+        <HelpGuide />
+      </div>
 
       {pendingRatingItem && (
         <RatingPrompt
