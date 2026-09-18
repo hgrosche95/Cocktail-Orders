@@ -408,6 +408,14 @@ p {
   font-size: 15px;
 }
 
+.queue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .queue-counter {
   display: inline-block;
   background: var(--card-bg);
@@ -418,6 +426,74 @@ p {
   font-weight: 500;
   color: var(--text-h);
   box-shadow: var(--shadow-sm);
+  margin: 0;
+}
+
+/* Hilfe-Guide */
+
+.help-button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-h);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.help-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 10;
+}
+
+.modal {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  margin-bottom: 0;
+  /* .card nutzt sonst den fast durchsichtigen --card-bg-Ton, der auf der
+     eigenen Seite funktioniert, aber vor einem abgedunkelten Overlay mit ihm
+     verschmilzt statt sich sichtbar abzuheben. */
+  background: color-mix(in srgb, var(--bg) 80%, white 8%);
+  box-shadow: var(--shadow-md);
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  min-height: 32px;
+  padding: 4px 10px;
+}
+
+.modal h3 {
+  margin: 20px 0 6px;
+}
+
+.modal ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.modal li {
+  margin-bottom: 4px;
 }
 
 /* Cocktail list */
