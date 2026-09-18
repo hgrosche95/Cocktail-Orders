@@ -29,6 +29,12 @@ export async function recommendByText({ text, cocktails }) {
   const completion = await getClient().chat.completions.create({
     model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
     response_format: { type: 'json_object' },
+    // gpt-oss ist ein Reasoning-Modell und generiert sonst 200-400+
+    // unsichtbare "Denk"-Tokens vor der eigentlichen JSON-Antwort - fuer
+    // diese Aufgabe (kurze Liste passender IDs) unnoetig. 'low' senkt die
+    // Completion-Tokens um ~3-4x, ohne dass sich die Antwortqualitaet in
+    // Tests messbar verschlechtert hat.
+    reasoning_effort: 'low',
     messages: [
       {
         role: 'system',
