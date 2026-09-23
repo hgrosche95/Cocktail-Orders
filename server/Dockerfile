@@ -35,6 +35,9 @@ COPY --from=prune /app/node_modules ./node_modules
 COPY --from=prune /app/prisma ./prisma
 COPY --from=prune /app/package.json ./package.json
 COPY --from=prune /app/*.js ./
+# Gemeinsame Cocktail-Karte (auch vom Frontend genutzt). menu.js liest sie
+# ueber ../shared, von /app aus ist das /shared.
+COPY shared/cocktails.json /shared/cocktails.json
 
 EXPOSE 3001
 CMD ["sh", "-c", "npx prisma migrate deploy && node index.js"]

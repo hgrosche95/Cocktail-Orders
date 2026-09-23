@@ -1,7 +1,21 @@
 import express from 'express'
 import cors from 'cors'
+import { rateLimit } from 'express-rate-limit'
 import { recommendCocktails } from './recommendations.js'
 import { recommendByText as defaultRecommendByText } from './groq.js'
+import { createBarkeeperToken, passwordMatches, requireBarkeeper } from './barkeeperAuth.js'
+import { cocktails, findCocktail } from './menu.js'
+
+const MAX_NAME_LENGTH = 50
+const MAX_NOTE_LENGTH = 200
+const MAX_ITEMS_PER_ORDER = 5
+const MAX_WISH_LENGTH = 300
+
+// Gaeste einer Party sitzen meist hinter derselben WLAN-IP, deshalb sind die
+// Limits pro IP grosszuegig und bremsen nur Skripte, keine echten Gaeste.
+function limiter(windowMs, limit, extra = {}) {
+  return rateLimit({ windowMs, limit, standardHeaders: 'draft-8', legacyHeaders: false, ...extra })
+}
 
 export function createApp({
   prisma,
@@ -11,6 +25,11 @@ export function createApp({
   recommendByText = defaultRecommendByText,
 } = {}) {
   const app = express()
+  const barkeeperOnly = requireBarkeeper(barkeeperPassword)
+
+  // Genau ein Proxy (Azure-Container-Apps-Ingress) vor dem Server, sonst waere
+  // req.ip fuer alle Anfragen die Proxy-IP und alle teilten sich ein Limit.
+  app.set('trust proxy', 1)
 
   // Ohne corsOrigin bleibt CORS offen (lokales Netzwerk: Gaeste greifen von
   // wechselnden LAN-IPs zu, die vorab nicht bekannt sind). In der Produktion
@@ -18,8 +37,10 @@ export function createApp({
   app.use(cors(corsOrigin ? { origin: corsOrigin } : undefined))
   app.use(express.json())
 
+  // req.path statt req.url: die Query enthaelt Gastnamen (?guest=...), die
+  // nichts im Log verloren haben.
   app.use((req, res, next) => {
-    console.log(new Date().toISOString(), req.method, req.url)
+    console.log(new Date().toISOString(), req.method, req.path)
     next()
   })
 
@@ -27,15 +48,18 @@ export function createApp({
     res.json({ status: 'ok' })
   })
 
-  app.post('/api/barkeeper-login', (req, res) => {
-    const { password } = req.body
-
-    if (password && password === barkeeperPassword) {
-      res.json({ success: true })
-    } else {
-      res.status(401).json({ success: false })
+  // Nur Fehlversuche zaehlen: bremst Passwort-Raten, nie den echten Barkeeper.
+  app.post(
+    '/api/barkeeper-login',
+    limiter(15 * 60 * 1000, 10, { skipSuccessfulRequests: true }),
+    (req, res) => {
+      if (passwordMatches(req.body?.password, barkeeperPassword)) {
+        res.json({ success: true, token: createBarkeeperToken(barkeeperPassword) })
+      } else {
+        res.status(401).json({ success: false })
+      }
     }
-  })
+  )
 
   app.get('/api/orders', async (req, res) => {
     const rows = await prisma.order.findMany({ where: { completedAt: null } })
@@ -65,19 +89,53 @@ export function createApp({
   })
 
   app.post('/api/orders', async (req, res) => {
-    const { name, items, note } = req.body
-    const orderId = crypto.randomUUID()
+    const { name, items, note = '' } = req.body ?? {}
+    const trimmedName = typeof name === 'string' ? name.trim() : ''
 
-    await prisma.order.create({ data: { orderId, name, items, note } })
+    if (!trimmedName || trimmedName.length > MAX_NAME_LENGTH) {
+      res.status(400).json({ error: `name must be 1-${MAX_NAME_LENGTH} characters` })
+      return
+    }
+    if (typeof note !== 'string' || note.length > MAX_NOTE_LENGTH) {
+      res.status(400).json({ error: `note must be at most ${MAX_NOTE_LENGTH} characters` })
+      return
+    }
+    if (!Array.isArray(items) || items.length === 0 || items.length > MAX_ITEMS_PER_ORDER) {
+      res.status(400).json({ error: `items must contain 1-${MAX_ITEMS_PER_ORDER} cocktails` })
+      return
+    }
+
+    // Die Positionen werden aus der Server-Karte gebaut, nicht vom Client
+    // uebernommen: der Client liefert nur, WELCHER Cocktail es ist.
+    const menuItems = items.map((item) => findCocktail(item?.id))
+    if (menuItems.some((cocktail) => !cocktail)) {
+      res.status(400).json({ error: 'unknown cocktail' })
+      return
+    }
+    const orderItems = menuItems.map((cocktail) => ({ ...cocktail, orderId: crypto.randomUUID() }))
+
+    // Frueher nur im Client geprueft (hasOpenOrder in App.tsx).
+    const openOrder = await prisma.order.findFirst({
+      where: { name: trimmedName, completedAt: null },
+    })
+    if (openOrder) {
+      res.status(409).json({ error: 'guest already has an open order' })
+      return
+    }
+
+    const orderId = crypto.randomUUID()
+    await prisma.order.create({
+      data: { orderId, name: trimmedName, items: orderItems, note },
+    })
 
     onChange()
-    res.status(201).json({ orderId, name, items, note })
+    res.status(201).json({ orderId, name: trimmedName, items: orderItems, note })
   })
 
   // War frueher ein DELETE (Bestellung wurde komplett geloescht). Jetzt ein
   // Soft-Complete, damit die Bestellhistorie fuers Rating-/Empfehlungs-
   // Feature erhalten bleibt.
-  app.patch('/api/orders/:id/complete', async (req, res) => {
+  app.patch('/api/orders/:id/complete', barkeeperOnly, async (req, res) => {
     const { id } = req.params
     await prisma.order.updateMany({
       where: { orderId: id },
@@ -93,8 +151,12 @@ export function createApp({
     res.json(rows.map((row) => row.ingredient))
   })
 
-  app.post('/api/unavailable-ingredients', async (req, res) => {
-    const { ingredient } = req.body
+  app.post('/api/unavailable-ingredients', barkeeperOnly, async (req, res) => {
+    const { ingredient } = req.body ?? {}
+    if (typeof ingredient !== 'string' || !ingredient) {
+      res.status(400).json({ error: 'ingredient is required' })
+      return
+    }
 
     await prisma.unavailableIngredient.upsert({
       where: { ingredient },
@@ -106,8 +168,12 @@ export function createApp({
     res.status(201).json({ ingredient })
   })
 
-  app.delete('/api/unavailable-ingredients', async (req, res) => {
-    const { ingredient } = req.body
+  app.delete('/api/unavailable-ingredients', barkeeperOnly, async (req, res) => {
+    const { ingredient } = req.body ?? {}
+    if (typeof ingredient !== 'string' || !ingredient) {
+      res.status(400).json({ error: 'ingredient is required' })
+      return
+    }
 
     await prisma.unavailableIngredient.deleteMany({ where: { ingredient } })
 
@@ -149,14 +215,15 @@ export function createApp({
     res.json(recommendations)
   })
 
-  // Die Cocktail-Karte kommt vom Frontend mit (statt einer eigenen Kopie im
-  // Backend), damit hier keine zweite, potenziell veraltende Datenquelle
-  // entsteht - die Karte lebt bewusst nur in src/data/cocktails.ts.
-  app.post('/api/recommend-by-text', async (req, res) => {
-    const { text, cocktails } = req.body
+  // Die Karte fuer den System-Prompt kommt aus shared/cocktails.json, nicht
+  // vom Client: sonst koennte jeder beliebigen Text in den vertrauenswuerdigen
+  // Teil des Prompts schreiben. Jede Anfrage kostet Groq-Kontingent, deshalb
+  // Limit pro IP und Laengengrenze.
+  app.post('/api/recommend-by-text', limiter(60 * 1000, 20), async (req, res) => {
+    const { text } = req.body ?? {}
 
-    if (typeof text !== 'string' || !text.trim() || !Array.isArray(cocktails)) {
-      res.status(400).json({ error: 'text and cocktails are required' })
+    if (typeof text !== 'string' || !text.trim() || text.length > MAX_WISH_LENGTH) {
+      res.status(400).json({ error: `text must be 1-${MAX_WISH_LENGTH} characters` })
       return
     }
 

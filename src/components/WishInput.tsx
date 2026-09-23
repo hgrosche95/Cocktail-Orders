@@ -25,6 +25,7 @@ function WishInput({ onSubmit, isLoading, isDisabled = false }: WishInputProps) 
           value={text}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setText(event.target.value)}
           placeholder="z. B. etwas Fruchtiges, nicht zu stark"
+          maxLength={300}
           disabled={isDisabled}
         />
       </label>

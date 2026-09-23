@@ -22,6 +22,14 @@ notified as soon as their order is ready.
 - Guests can rate cocktails they've had; a "recommended for you" section suggests cocktails liked by guests with similar taste (collaborative filtering)
 - Ready notification for the guest once the barkeeper marks their order as done
 - Works across devices on the same local network (e.g. guests on their phones, barkeeper on a tablet), or deployed to Azure for access from anywhere
+- Help guide (`?` button) explaining ordering and the wish feature
+
+## Security model
+
+- **Barkeeper actions are protected on the server, not just in the UI.** The login returns a signed token (HMAC-SHA256, valid for 12 hours, key derived from `BARKEEPER_PASSWORD`), and every barkeeper route (completing orders, marking ingredients (un)available) rejects requests without a valid token. The password is compared in constant time, and failed logins are rate-limited per IP.
+- **Orders are validated on the server:** one open order per guest, name/note length limits, and order items are rebuilt from the menu, so clients can only say *which* cocktail they want.
+- **The menu lives in `shared/cocktails.json`** and is read by both the frontend and the server. The LLM prompt for free-text wishes is built from the server's copy, never from client input. Wishes are limited to 300 characters and rate-limited per IP.
+- **Guests are identified by name only, on purpose.** This is a house-bar app: anyone who knows a guest's name can see that guest's order history and ratings. There are no accounts or passwords for guests.
 
 ## Screenshots
 
@@ -43,8 +51,11 @@ notified as soon as their order is ready.
 
 ```
 ├── src/                    React frontend (components, pages, data, tests)
+├── shared/cocktails.json   The menu, read by both frontend and server
 ├── server/
 │   ├── app.js              Express app + routes (importable, used by tests)
+│   ├── barkeeperAuth.js     Barkeeper token + password check + route guard
+│   ├── menu.js              Loads shared/cocktails.json for the server
 │   ├── index.js             Entry point: starts the HTTP + WebSocket servers
 │   ├── prisma.js            Prisma Client singleton
 │   ├── prisma/schema.prisma Database schema + migrations
