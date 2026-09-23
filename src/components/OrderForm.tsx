@@ -43,6 +43,7 @@ function OrderForm({ order, onSubmitOrder, hasOpenOrder, initialNote }: OrderFor
         <textarea
           value={note}
           onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNote(event.target.value)}
+          maxLength={200}
         />
       </label>
       <button type="submit" className="btn btn-primary btn-block" disabled={order.length === 0}>

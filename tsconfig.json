@@ -12,7 +12,8 @@
     "jsx": "react-jsx",
 
     "allowJs": true,
-    "strict": true
+    "strict": true,
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

@@ -157,16 +157,36 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: currentUser, items: order, note }),
     })
-      .then((res) => res.json())
-      .then((newOrder: SubmittedOrder) => {
+      // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B. aus
+      // einem zweiten Tab), dann nichts in die lokale Liste uebernehmen.
+      .then((res) => (res.ok ? res.json() : null))
+      .then((newOrder: SubmittedOrder | null) => {
+        if (!newOrder) return
         setOpenOrders((prevOpenOrders) => [...prevOpenOrders, newOrder])
         setOrder([])
       })
   }
 
-  const [isBarkeeperAuthenticated, setIsBarkeeperAuthenticated] = useState(
-    () => sessionStorage.getItem('isBarkeeper') === 'true'
+  // Das Token vom Server ist der eigentliche Nachweis: die Barkeeper-Routen
+  // pruefen es, ein reines "isBarkeeper"-Flag im Browser haette jeder setzen
+  // koennen.
+  const [barkeeperToken, setBarkeeperToken] = useState(
+    () => sessionStorage.getItem('barkeeperToken')
   )
+  const isBarkeeperAuthenticated = barkeeperToken !== null
+
+  function barkeeperFetch(path: string, init: RequestInit = {}) {
+    const headers = new Headers(init.headers)
+    headers.set('Authorization', `Bearer ${barkeeperToken}`)
+    return fetch(`${API_URL}${path}`, { ...init, headers }).then((res) => {
+      // Token abgelaufen (nach 12 h) oder Passwort geaendert: neu anmelden.
+      if (res.status === 401) {
+        sessionStorage.removeItem('barkeeperToken')
+        setBarkeeperToken(null)
+      }
+      return res
+    })
+  }
 
   function handleBarkeeperLogin(password: string): Promise<boolean> {
     return fetch(`${API_URL}/barkeeper-login`, {
@@ -175,19 +195,21 @@ function App() {
       body: JSON.stringify({ password }),
     })
       .then((res) => res.json())
-      .then((data: { success: boolean }) => {
-        if (data.success) {
-          sessionStorage.setItem('isBarkeeper', 'true')
-          setIsBarkeeperAuthenticated(true)
+      .then((data: { success: boolean; token?: string }) => {
+        if (data.success && data.token) {
+          sessionStorage.setItem('barkeeperToken', data.token)
+          setBarkeeperToken(data.token)
+          return true
         }
-        return data.success
+        return false
       })
   }
 
   function handleMarkAsDone(orderId: string) {
-    fetch(`${API_URL}/orders/${orderId}/complete`, {
+    barkeeperFetch(`/orders/${orderId}/complete`, {
       method: 'PATCH',
-    }).then(() => {
+    }).then((res) => {
+      if (!res.ok) return
       setOpenOrders((prevOpenOrders) =>
         prevOpenOrders.filter((o) => o.orderId !== orderId)
       )
@@ -214,7 +236,7 @@ function App() {
     fetch(`${API_URL}/recommend-by-text`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, cocktails }),
+      body: JSON.stringify({ text }),
     })
       .then((res) => {
         // Groq-Tages-/Ratenlimit erreicht (siehe app.js) - Feature fuer den
@@ -265,21 +287,23 @@ function App() {
       : null
 
   function handleMarkIngredientUnavailable(ingredient: string) {
-    fetch(`${API_URL}/unavailable-ingredients`, {
+    barkeeperFetch(`/unavailable-ingredients`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ingredient }),
-    }).then(() => {
+    }).then((res) => {
+      if (!res.ok) return
       setUnavailableIngredients((prev) => [...prev, ingredient])
     })
   }
 
   function handleMarkIngredientAvailable(ingredient: string) {
-    fetch(`${API_URL}/unavailable-ingredients`, {
+    barkeeperFetch(`/unavailable-ingredients`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ingredient }),
-    }).then(() => {
+    }).then((res) => {
+      if (!res.ok) return
       setUnavailableIngredients((prev) => prev.filter((i) => i !== ingredient))
     })
   }

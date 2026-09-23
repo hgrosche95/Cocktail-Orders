@@ -22,6 +22,7 @@ function LoginForm({ onLogin }: LoginFormProps) {
           type="text"
           value={name}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setName(event.target.value)}
+          maxLength={50}
         />
       </label>
       <button type="submit" className="btn btn-primary btn-block">
