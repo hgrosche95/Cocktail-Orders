@@ -1,4 +1,4 @@
-FROM node:24-slim AS build
+FROM node:25-slim AS build
 WORKDIR /app
 
 # Ohne OpenSSL erkennt Prismas Postinstall-Skript (laeuft hier via 'npm ci')
@@ -16,7 +16,7 @@ FROM build AS prune
 WORKDIR /app
 RUN npm prune --omit=dev
 
-FROM node:24-slim
+FROM node:25-slim
 WORKDIR /app
 
 # Prisma's Query-Engine-Binary braucht libssl zur Laufzeit; node:24-slim
