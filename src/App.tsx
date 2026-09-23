@@ -35,8 +35,9 @@ function App() {
   const [isTextRecommending, setIsTextRecommending] = useState(false)
   const [wishNote, setWishNote] = useState('')
   // Nur fuer die aktuelle Sitzung (kein localStorage) - bei Neuladen der
-  // Seite wird es einfach erneut versucht. Absichtlich einfach gehalten,
-  // siehe Besprechung.
+  // Seite wird es einfach erneut versucht. Ein Groq-Tageslimit ist am
+  // naechsten Tag ohnehin wieder frei, ein dauerhaftes Abschalten braucht es
+  // dafuer nicht.
   const [isWishFeatureDisabled, setIsWishFeatureDisabled] = useState(false)
 
   const [currentUser, setCurrentUser] = useState(
