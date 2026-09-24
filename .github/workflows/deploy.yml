@@ -83,18 +83,33 @@ jobs:
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          OUTPUTS=$(az deployment group create \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --template-file infra/main.bicep \
-            --parameters infra/main.parameters.json \
-            --parameters \
-              databaseUrl="$DATABASE_URL" \
-              barkeeperPassword="$BARKEEPER_PASSWORD" \
-              containerImage="$IMAGE_TAG" \
-              registryUsername="${{ github.actor }}" \
-              registryPassword="$GHCR_PAT" \
-              groqApiKey="$GROQ_API_KEY" \
-            --query properties.outputs -o json)
+          # Azure occasionally fails with DeploymentActive: a nested deployment counts
+          # as "still active" although no other deploy is running, and a retry works.
+          # For exactly this error (and the occasional CLI error "already consumed")
+          # retry up to 3 times; any other error fails immediately.
+          for attempt in 1 2 3; do
+            if OUTPUTS=$(az deployment group create \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --template-file infra/main.bicep \
+              --parameters infra/main.parameters.json \
+              --parameters \
+                databaseUrl="$DATABASE_URL" \
+                barkeeperPassword="$BARKEEPER_PASSWORD" \
+                containerImage="$IMAGE_TAG" \
+                registryUsername="${{ github.actor }}" \
+                registryPassword="$GHCR_PAT" \
+                groqApiKey="$GROQ_API_KEY" \
+              --query properties.outputs -o json 2> deploy-error.log); then
+              break
+            fi
+            cat deploy-error.log
+            if [ "$attempt" -lt 3 ] && grep -qE "DeploymentActive|still active|already consumed" deploy-error.log; then
+              echo "::warning::Azure reports a nested deployment as still active, retrying in 60 s"
+              sleep 60
+              continue
+            fi
+            exit 1
+          done
 
           echo "container_app_url=$(echo "$OUTPUTS" | jq -r '.containerAppUrl.value')" >> "$GITHUB_OUTPUT"
           echo "static_web_app_name=$(echo "$OUTPUTS" | jq -r '.staticWebAppName.value')" >> "$GITHUB_OUTPUT"
