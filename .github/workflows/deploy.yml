@@ -9,6 +9,13 @@ on:
 # das GitHub-OIDC-Token gegen ein kurzlebiges Azure-Access-Token, ohne dass
 # irgendwo ein langlebiger Client-Secret-Key als GitHub-Secret liegen muss).
 # packages: write wird fuer den Push des Backend-Images nach GHCR gebraucht.
+# Never run two deploys at once: Azure rejects parallel infrastructure
+# deployments (DeploymentActive). A second run waits instead of failing; if
+# one is already waiting, the newest replaces it (it contains all commits).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
