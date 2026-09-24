@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Routes, Route, NavLink } from 'react-router-dom'
+import { Routes, Route, NavLink, Link, useMatch } from 'react-router-dom'
 import LoginForm from './components/LoginForm'
 import BarkeeperLogin from './components/BarkeeperLogin'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
+import Skyline from './components/Skyline'
+import DrinkPage from './pages/DrinkPage'
 import cocktails from './data/cocktails'
 import type { Cocktail } from './data/cocktails'
 import type { OrderItem, SubmittedOrder, Recommendation } from './types'
@@ -133,11 +135,19 @@ function App() {
     orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  function handleOrderNow(cocktail: Cocktail, note: string) {
+    handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
+  }
+
   function handleRemoveItem(orderId: string) {
     setOrder((prevOrder) => prevOrder.filter((item) => item.orderId !== orderId))
   }
 
-  const hasOpenOrder = openOrders.some((o) => o.name === currentUser)
+  // Die Position in der Schlange ist die Reihenfolge, in der der Server die
+  // offenen Bestellungen liefert - dieselbe, die auch die Theke sieht.
+  const ownOrderIndex = openOrders.findIndex((o) => o.name === currentUser)
+  const ownOpenOrder = ownOrderIndex === -1 ? null : openOrders[ownOrderIndex]
+  const hasOpenOrder = ownOpenOrder !== null
 
   const [showReadyNotification, setShowReadyNotification] = useState(false)
   const previousHasOpenOrder = useRef(false)
@@ -150,13 +160,16 @@ function App() {
     previousHasOpenOrder.current = hasOpenOrder
   }, [hasOpenOrder])
 
-  function handleSubmitOrder(note: string) {
+  // items ist optional: die Karte schickt die vorgemerkte Bestellung ab, die
+  // Detailansicht eines Drinks bestellt ihn direkt, ohne Umweg ueber `order`
+  // (ein setOrder direkt vor dem fetch waere hier noch nicht angekommen).
+  function handleSubmitOrder(note: string, items: OrderItem[] = order) {
     if (hasOpenOrder) return
 
     fetch(`${API_URL}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: currentUser, items: order, note }),
+      body: JSON.stringify({ name: currentUser, items, note }),
     })
       // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B. aus
       // einem zweiten Tab), dann nichts in die lokale Liste uebernehmen.
@@ -309,17 +322,51 @@ function App() {
     })
   }
 
+  const drinkMatch = useMatch('/drink/:id')
+  const detailCocktail = drinkMatch
+    ? cocktails.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
+    : undefined
+  const barkeeperMatch = useMatch('/barkeeper')
+  const isArrival = currentUser === '' && !barkeeperMatch
+
   return (
     <div>
-      <header className="app-header">
-        <h1>🍸 Cocktail-Bestellungen</h1>
-        <p className="app-subtitle">Shaken, not stirred</p>
+      {/* Der Header ist die Buehne ueber der Skyline und wechselt mit der
+          Ansicht: Ankunft (noch nicht angemeldet), Drink-Detail oder die
+          normale Marke. */}
+      <header className={isArrival ? 'app-header app-header-arrival' : 'app-header'}>
+        <div className="app-header-inner">
+          {isArrival ? (
+            <>
+              <span className="lift-display">▲ 5 · Dachterrasse</span>
+              <h1 className="arrival-title">
+                Über den Dächern <span>von Düsseldorf.</span>
+              </h1>
+              <p className="app-coords">51°14′ N · 6°46′ O · Etage 5</p>
+            </>
+          ) : detailCocktail ? (
+            <>
+              <Link to="/" className="back-link">
+                ← Karte
+              </Link>
+              <h1 className="drink-title">{detailCocktail.name}</h1>
+            </>
+          ) : (
+            <>
+              <h1>
+                Rooftop <span className="app-floor">5. OG</span>
+              </h1>
+              <p className="app-subtitle">Cocktails über Düsseldorf</p>
+            </>
+          )}
+        </div>
+        <Skyline className="app-skyline" />
       </header>
 
       {showReadyNotification && (
         <div className="notification">
           <p>
-            <span className="pop-emoji">🍹</span> Deine Bestellung ist fertig!
+            <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
           </p>
           <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
             Schließen
@@ -328,11 +375,8 @@ function App() {
       )}
 
       <nav className="tabs">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
-        >
+        {/* Kunde bleibt auch in der Drink-Detailansicht markiert */}
+        <NavLink to="/" className={barkeeperMatch ? 'tab' : 'tab active'}>
           Kunde
         </NavLink>
         <NavLink
@@ -356,6 +400,8 @@ function App() {
                 onRemoveItem={handleRemoveItem}
                 onSubmitOrder={handleSubmitOrder}
                 hasOpenOrder={hasOpenOrder}
+                ownOpenOrder={ownOpenOrder}
+                queuePosition={ownOrderIndex + 1}
                 orderFormRef={orderFormRef}
                 queueLength={openOrders.length}
                 unavailableIngredients={unavailableIngredients}
@@ -370,6 +416,22 @@ function App() {
                 onWishSubmit={handleWishSubmit}
                 wishNote={wishNote}
                 isWishFeatureDisabled={isWishFeatureDisabled}
+              />
+            )
+          }
+        />
+        <Route
+          path="/drink/:id"
+          element={
+            currentUser === '' ? (
+              <LoginForm onLogin={setCurrentUser} />
+            ) : (
+              <DrinkPage
+                cocktail={detailCocktail}
+                onOrder={handleOrderNow}
+                hasOpenOrder={hasOpenOrder}
+                queueLength={openOrders.length}
+                unavailableIngredients={unavailableIngredients}
               />
             )
           }

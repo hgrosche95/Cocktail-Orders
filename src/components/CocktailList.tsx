@@ -64,7 +64,7 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
               style={categoryStyle(theme.color)}
               onClick={() => setSelectedCategory(category)}
             >
-              {theme.icon} {category}
+              {category}
             </button>
           )
         })}
@@ -75,7 +75,9 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
         return (
           <section key={category} className="cocktail-category" style={categoryStyle(theme.color)}>
             <h2>
-              <span className="category-icon">{theme.icon}</span> {category}
+              <span className="category-dot" aria-hidden="true" />
+              {category}
+              <span className="category-count">{items.length}</span>
             </h2>
             <ul className="cocktail-grid">
               {items.map((cocktail) => (

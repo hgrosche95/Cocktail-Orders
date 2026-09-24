@@ -5,6 +5,8 @@ interface LoginFormProps {
   onLogin: (name: string) => void
 }
 
+// Die Begruessung ("Ueber den Daechern ...") steht im Header ueber der
+// Skyline, hier bleibt nur das eigentliche Formular.
 function LoginForm({ onLogin }: LoginFormProps) {
   const [name, setName] = useState('')
 
@@ -15,18 +17,20 @@ function LoginForm({ onLogin }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card">
+    <form onSubmit={handleSubmit} className="login-form">
       <label className="field">
-        Dein Name:
+        Wer kommt hoch?
         <input
           type="text"
           value={name}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setName(event.target.value)}
           maxLength={50}
+          autoComplete="off"
         />
       </label>
-      <button type="submit" className="btn btn-primary btn-block">
-        Anmelden
+      <button type="submit" className="btn btn-primary btn-block btn-split">
+        <span>Hochfahren</span>
+        <span aria-hidden="true">↑</span>
       </button>
     </form>
   )

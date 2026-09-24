@@ -7,6 +7,7 @@ import OrderHistory from '../components/OrderHistory'
 import Recommendations from '../components/Recommendations'
 import WishInput from '../components/WishInput'
 import HelpGuide from '../components/HelpGuide'
+import WaitingPanel from '../components/WaitingPanel'
 import type { Cocktail } from '../data/cocktails'
 import type { OrderItem, SubmittedOrder, Recommendation } from '../types'
 
@@ -16,6 +17,8 @@ interface CustomerPageProps {
   onRemoveItem: (orderId: string) => void
   onSubmitOrder: (note: string) => void
   hasOpenOrder: boolean
+  ownOpenOrder: SubmittedOrder | null
+  queuePosition: number
   orderFormRef: RefObject<HTMLDivElement | null>
   queueLength: number
   unavailableIngredients: string[]
@@ -38,6 +41,8 @@ function CustomerPage({
   onRemoveItem,
   onSubmitOrder,
   hasOpenOrder,
+  ownOpenOrder,
+  queuePosition,
   orderFormRef,
   queueLength,
   unavailableIngredients,
@@ -57,10 +62,15 @@ function CustomerPage({
     <>
       <div className="queue-row">
         <p className="queue-counter">
-          🍹 {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
+          <span className="live-dot" aria-hidden="true" />
+          {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
         </p>
         <HelpGuide />
       </div>
+
+      {ownOpenOrder && (
+        <WaitingPanel order={ownOpenOrder} position={queuePosition} queueLength={queueLength} />
+      )}
 
       {pendingRatingItem && (
         <RatingPrompt
@@ -85,7 +95,7 @@ function CustomerPage({
         recommendations={textRecommendations}
         unavailableIngredients={unavailableIngredients}
         onAddToOrder={onAddToOrder}
-        title="🔮 Passend zu deinem Wunsch"
+        title="Passend zu deinem Wunsch"
       />
 
       <CocktailList

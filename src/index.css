@@ -1,26 +1,26 @@
-/* Noir Speakeasy x Art Deco: dunkles Smaragdgrün + Gold statt hellem
-   Lila-Theme. Ein bewusst einziges, dunkles Erscheinungsbild - kein
-   separates Hell-Theme mehr, daher kein prefers-color-scheme-Override. */
+/* Rooftop Duesseldorf: Nachthimmel-Blau, Glas-Karten und Signalorange.
+   Ein bewusst einziges, dunkles Erscheinungsbild - kein separates
+   Hell-Theme, daher kein prefers-color-scheme-Override. */
 :root {
-  --text: #b8ae9e;
-  --text-h: #f3ead9;
-  --bg: #0b2620;
-  --card-bg: rgba(255, 255, 255, 0.03);
-  --border: rgba(207, 166, 70, 0.35);
-  --accent: #cfa646;
-  --accent-2: #e6c169;
-  --accent-text: #0b2620;
+  --text: #b9b5ae;
+  --text-h: #f3efe8;
+  --bg: #10131b;
+  --card-bg: rgba(255, 255, 255, 0.055);
+  --border: rgba(255, 255, 255, 0.09);
+  --accent: #ff7a45;
+  --accent-2: #ffb37a;
+  --accent-text: #1a0e08;
   --success: #7fb88f;
-  --success-text: #0b2620;
-  --danger: #e2725a;
-  --danger-bg: rgba(226, 114, 90, 0.14);
+  --success-text: #10131b;
+  --danger: #ff6b5a;
+  --danger-bg: rgba(255, 107, 90, 0.14);
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.5), 0 3px 10px rgba(0, 0, 0, 0.3);
 
-  --sans: 'IBM Plex Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --mono: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --sans: 'Barlow', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
@@ -68,19 +68,21 @@ body {
   margin: 0;
   background: var(--bg);
   position: relative;
+  /* 100vw des Headers zaehlt die Scrollbar mit - ohne clip gaebe es am
+     Desktop einen Millimeter horizontales Scrollen. */
+  overflow-x: clip;
 }
 
+/* Warmer Lichtschein ueber der Stadt, fix hinter allem */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(
-    700px 480px at 50% -8%,
-    color-mix(in srgb, var(--accent) 12%, transparent),
-    transparent 70%
-  );
+  background:
+    radial-gradient(900px 420px at 50% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(600px 300px at 100% 110%, rgba(60, 38, 56, 0.6), transparent 70%);
 }
 
 #root {
@@ -94,61 +96,174 @@ h1,
 h2,
 h3 {
   font-family: var(--heading);
-  font-weight: 500;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1;
   color: var(--text-h);
-}
-
-.app-header {
-  text-align: center;
-  margin: 8px 0 24px;
 }
 
 h1 {
-  font-size: 32px;
-  letter-spacing: 0.3px;
+  font-size: 34px;
   margin: 0;
-  color: var(--text-h);
-
-  @media (max-width: 1024px) {
-    font-size: 26px;
-  }
-}
-
-.app-subtitle {
-  margin: 4px 0 0;
-  font-size: 14px;
-  font-style: italic;
-  letter-spacing: 0.3px;
-  color: var(--accent);
 }
 
 h2 {
-  font-size: 20px;
-  letter-spacing: -0.24px;
+  font-size: 22px;
   margin: 0 0 12px;
   display: flex;
   align-items: center;
-}
-
-.category-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  margin-right: 8px;
-  font-size: 15px;
-  background: color-mix(in srgb, var(--cat-color, var(--accent)) 18%, var(--card-bg));
+  gap: 10px;
 }
 
 h3 {
-  font-size: 17px;
-  margin: 0 0 4px;
+  font-size: 20px;
+  margin: 0 0 6px;
 }
 
 p {
   margin: 0 0 12px;
+}
+
+.section-hint {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: -6px;
+}
+
+/* Header mit Skyline */
+
+/* Randlos ueber die volle Fensterbreite, obwohl #root auf 640px begrenzt
+   ist: 100vw plus negativer Rand hebt die Begrenzung fuer den Header auf. */
+.app-header {
+  position: relative;
+  width: 100vw;
+  margin: -16px 0 20px calc(50% - 50vw);
+  background: linear-gradient(180deg, #151927 0%, #1b1f31 34%, #3c2638 64%, #b4533b 90%, #ff9a5c 100%);
+}
+
+/* Boden der Skyline laeuft bis an beide Fensterraender weiter */
+.app-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: #0b0d12;
+}
+
+.app-header-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 22px 16px 0;
+}
+
+.app-header-arrival .app-header-inner {
+  padding-top: 32px;
+}
+
+.arrival-title {
+  font-size: clamp(42px, 14vw, 64px);
+  /* Nicht enger: sonst stossen die Umlaut-Punkte (Ü, Ä) an die Zeile darueber */
+  line-height: 0.98;
+  margin: 18px 0 10px;
+}
+
+.arrival-title span {
+  display: block;
+  color: var(--accent-2);
+}
+
+.app-coords {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #c9c3bb;
+  margin: 0;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text-h);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  border-color: var(--accent);
+}
+
+.drink-title {
+  font-size: clamp(46px, 16vw, 76px);
+  line-height: 0.86;
+  margin: 18px 0 0;
+  text-wrap: balance;
+}
+
+.app-floor {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.lift-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #07080b;
+  border: 1px solid #2b2f38;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-2);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+  white-space: nowrap;
+}
+
+.app-subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #d8d4cc;
+}
+
+.app-skyline {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+  margin: 10px auto 0;
+  color: #0b0d12;
+}
+
+.skyline-beacon {
+  fill: #ff3b30;
+  animation: beacon 1.6s infinite;
+}
+
+.skyline-lights {
+  fill: #ffd89a;
+  opacity: 0.75;
+}
+
+@keyframes beacon {
+  50% {
+    opacity: 0.2;
+  }
 }
 
 /* Navigation */
@@ -156,11 +271,13 @@ p {
 .tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   padding: 4px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 .tab {
@@ -169,8 +286,12 @@ p {
   padding: 10px 12px;
   text-decoration: none;
   color: var(--text);
-  border-radius: 2px;
-  font-weight: 500;
+  border-radius: 10px;
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -179,23 +300,20 @@ p {
 }
 
 .tab.active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--text-h);
+  color: var(--bg);
 }
 
-.tab.active:hover {
-  color: var(--accent-text);
-}
-
-/* Cards */
+/* Karten: mattes Glas */
 
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 16px;
   padding: 16px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  /* Bewusst ohne backdrop-filter: hinter den Karten liegt nur der ruhige
+     Verlauf, und Blur auf ueber 30 Karten kostet auf Handys spuerbar. */
 }
 
 /* Buttons */
@@ -204,22 +322,30 @@ p {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font: inherit;
-  font-weight: 500;
-  border-radius: 3px;
+  gap: 10px;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 12px;
   border: 1px solid transparent;
   padding: 12px 18px;
-  min-height: 44px;
+  min-height: 48px;
   cursor: pointer;
-  transition: transform 0.1s ease, filter 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.1s ease, filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.btn:focus-visible {
+.btn:focus-visible,
+.add-button:focus-visible,
+.filter-chip:focus-visible,
+.ingredient-chip:focus-visible,
+.tab:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -228,100 +354,87 @@ p {
   width: 100%;
 }
 
-.btn-primary,
-.btn-success {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-primary::after,
-.btn-success::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.5s ease;
-}
-
-.btn-primary:hover:not(:disabled)::after,
-.btn-success:hover:not(:disabled)::after {
-  left: 120%;
+.btn-split {
+  justify-content: space-between;
 }
 
 .btn-primary {
   background: var(--accent);
   color: var(--accent-text);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  background: #ff9366;
   transform: translateY(-1px);
 }
 
 .btn-primary:active:not(:disabled) {
   transform: translateY(0);
-  filter: brightness(0.96);
+  filter: brightness(0.95);
 }
 
-.btn-success {
-  background: var(--success);
-  color: var(--success-text);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--success) 35%, transparent);
+.btn-light {
+  background: var(--text-h);
+  color: var(--bg);
 }
 
-.btn-success:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.btn-success:active:not(:disabled) {
-  transform: translateY(0);
-  filter: brightness(0.96);
+.btn-light:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-text);
 }
 
 .btn-ghost {
   background: transparent;
-  border-color: var(--border);
-  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--text-h);
 }
 
 .btn-ghost:hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--text-h);
+  color: var(--accent-2);
 }
 
 .btn-small {
-  padding: 6px 12px;
+  padding: 5px 12px;
   min-height: 32px;
   font-size: 14px;
+  border-radius: 9px;
 }
 
-/* Forms */
+/* Formulare */
 
 .field {
   display: block;
   margin-bottom: 16px;
-  font-weight: 500;
-  color: var(--text-h);
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 .field input,
 .field textarea {
   display: block;
   width: 100%;
-  margin-top: 6px;
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg);
+  margin-top: 8px;
+  padding: 12px 14px;
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-h);
-  transition: outline-color 0.15s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: #6d7380;
 }
 
 .field textarea {
@@ -331,24 +444,98 @@ p {
 
 .field input:focus,
 .field textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
   border-color: var(--accent);
 }
 
-/* Messages */
+.field input:disabled {
+  opacity: 0.5;
+}
+
+/* Ankunft (Login) */
+
+.login-form {
+  padding-top: 4px;
+}
+
+/* Drink-Detail */
+
+.drink-page {
+  display: grid;
+  gap: 18px;
+}
+
+.drink-meta {
+  margin: 0;
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.drink-description {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: #cfcac2;
+}
+
+.drink-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.drink-facts .card {
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.drink-facts dt {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.drink-facts dd {
+  margin: 4px 0 0;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 19px;
+  text-transform: uppercase;
+  color: var(--text-h);
+}
+
+.drink-page .field {
+  margin-bottom: 0;
+}
+
+.btn-meta {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Meldungen */
 
 .notification {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--success);
-  color: var(--success-text);
-  border-radius: 3px;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-radius: 14px;
   padding: 14px 16px;
   margin-bottom: 16px;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 35%, transparent);
   animation: slide-in 0.25s ease;
 }
 
@@ -365,44 +552,35 @@ p {
 
 .notification p {
   margin: 0;
-  font-weight: 500;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 20px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.pop-emoji {
-  display: inline-block;
-  animation: pop 0.6s cubic-bezier(0.36, 1.56, 0.64, 1);
-}
-
-@keyframes pop {
-  0% {
-    transform: scale(0);
-  }
-  60% {
-    transform: scale(1.3);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pop-emoji {
-    animation: none;
-  }
+.notification-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-text);
+  animation: beacon 1.2s infinite;
 }
 
 .notification .btn {
-  min-height: 32px;
+  min-height: 34px;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.25);
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.15);
   color: inherit;
-  box-shadow: none;
 }
 
 .error-message {
   background: var(--danger-bg);
   color: var(--danger);
-  border-radius: 3px;
+  border-radius: 10px;
   padding: 10px 12px;
   margin-top: 12px;
   font-size: 15px;
@@ -413,47 +591,67 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .queue-counter {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: var(--card-bg);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 14px;
-  font-weight: 500;
   color: var(--text-h);
-  box-shadow: var(--shadow-sm);
   margin: 0;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skyline-beacon,
+  .notification-dot,
+  .rheinturm-antenna::before {
+    animation: none;
+  }
 }
 
 /* Hilfe-Guide */
 
 .help-button {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   background: var(--card-bg);
   color: var(--text-h);
-  font-weight: 600;
-  font-size: 15px;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 17px;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .help-button:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-2);
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(5, 6, 10, 0.72);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -468,10 +666,9 @@ p {
   max-height: 85vh;
   overflow-y: auto;
   margin-bottom: 0;
-  /* .card nutzt sonst den fast durchsichtigen --card-bg-Ton, der auf der
-     eigenen Seite funktioniert, aber vor einem abgedunkelten Overlay mit ihm
-     verschmilzt statt sich sichtbar abzuheben. */
-  background: color-mix(in srgb, var(--bg) 80%, white 8%);
+  /* Vor dem abgedunkelten Overlay braucht das Glas einen festen Grund,
+     sonst verschwimmt es mit dem Hintergrund. */
+  background: #181c26;
   box-shadow: var(--shadow-md);
 }
 
@@ -485,6 +682,7 @@ p {
 
 .modal h3 {
   margin: 20px 0 6px;
+  font-size: 18px;
 }
 
 .modal ul {
@@ -496,25 +694,40 @@ p {
   margin-bottom: 4px;
 }
 
-/* Cocktail list */
+/* Karte */
 
 .category-filter {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 20px;
 }
 
 .filter-chip {
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  color: #d8d4cc;
   border-radius: 999px;
-  padding: 6px 14px;
-  font: inherit;
+  padding: 6px 13px;
+  font-family: var(--heading);
+  font-weight: 600;
   font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+/* Nur Kategorie-Chips setzen --cat-color per style-Attribut, "Alle" nicht */
+.filter-chip[style]::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cat-color);
 }
 
 .filter-chip:hover {
@@ -523,14 +736,32 @@ p {
 }
 
 .filter-chip.active {
-  background: var(--cat-color, var(--accent));
-  border-color: var(--cat-color, var(--accent));
-  color: var(--accent-text);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--cat-color, var(--accent)) 35%, transparent);
+  background: var(--text-h);
+  border-color: var(--text-h);
+  color: var(--bg);
 }
 
 .cocktail-category {
-  margin-bottom: 24px;
+  margin-bottom: 26px;
+}
+
+.category-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--cat-color, var(--accent));
+  box-shadow: 0 0 10px var(--cat-color, var(--accent));
+}
+
+.category-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
 }
 
 .cocktail-grid {
@@ -538,56 +769,324 @@ p {
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .cocktail-card {
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 0;
+  padding: 14px 16px;
+  transition: border-color 0.2s ease;
 }
 
 .cocktail-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.cocktail-card-body {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.cocktail-card-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.cocktail-card h3 {
+  font-size: 25px;
+  margin-bottom: 6px;
+  transition: color 0.15s ease;
+}
+
+.cocktail-card-body:hover h3 {
+  color: var(--accent-2);
 }
 
 .cocktail-ingredient-list {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
   padding: 0;
-  margin: 0 0 10px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #cfcac2;
 }
 
-.cocktail-ingredient-pill {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--text-h);
+/* Trenner hinter statt vor dem Eintrag: bricht die Zeile um, beginnt die
+   neue Zeile nicht mit einem verwaisten Punkt. */
+.cocktail-ingredient:not(:last-child)::after {
+  content: '·';
+  margin: 0 6px;
+  color: var(--accent);
 }
 
 .cocktail-description {
   font-size: 15px;
+  line-height: 1.45;
   color: var(--text);
+  margin-bottom: 6px;
 }
 
 .cocktail-movie {
-  font-size: 14px;
-  font-style: italic;
-  color: var(--text);
-  padding-top: 8px;
-  margin: 4px 0 12px;
-  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: #7d838e;
+  margin: 0;
 }
 
-/* Order summary */
+.add-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: none;
+  color: var(--text-h);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.add-button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.add-button:active {
+  transform: scale(0.94);
+}
+
+/* Warten: Rheinturm mit Lichtzeituhr */
+
+.waiting-panel {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 18px;
+  align-items: start;
+  padding: 18px 16px;
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background:
+    radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    var(--card-bg);
+}
+
+.rheinturm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rheinturm-antenna {
+  position: relative;
+  width: 2px;
+  height: 28px;
+  background: #5a606b;
+}
+
+/* Flugwarnlicht auf der Antennenspitze */
+.rheinturm-antenna::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff3b30;
+  box-shadow: 0 0 8px #ff3b30;
+  animation: beacon 1.4s infinite;
+}
+
+.rheinturm-neck {
+  width: 7px;
+  height: 12px;
+  background: linear-gradient(90deg, #262a33, #3b404b, #262a33);
+  clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%);
+}
+
+.rheinturm-roof {
+  width: 36px;
+  height: 4px;
+  background: #3b404b;
+  clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%);
+}
+
+.rheinturm-rim {
+  width: 44px;
+  height: 4px;
+  border-radius: 1px;
+  background: #4a505c;
+}
+
+/* Kanzel: nach unten schmaler, mit leuchtendem Fensterband */
+.rheinturm-pod {
+  width: 42px;
+  height: 16px;
+  clip-path: polygon(0 0, 100% 0, 68% 100%, 32% 100%);
+  background: linear-gradient(#1f232b 0 22%, #ffd89a 22% 38%, #2b3039 38%);
+}
+
+.rheinturm-shaft {
+  margin-top: 2px;
+  width: 16px;
+  padding: 5px 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #262a33, #353a45, #262a33);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rheinturm-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Rote Trennlampe zwischen zwei Zifferngruppen */
+.rheinturm-group + .rheinturm-group::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin: 3px 0;
+  border-radius: 50%;
+  background: #ff3b30;
+  box-shadow: 0 0 5px #ff3b30;
+}
+
+.rheinturm-lamp {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3d434f;
+}
+
+.rheinturm-lamp.on {
+  background: #ffe0a6;
+  box-shadow: 0 0 6px #ffc46b;
+}
+
+.rheinturm-base {
+  width: 30px;
+  height: 4px;
+  border-radius: 2px;
+  background: #353a45;
+}
+
+.rheinturm-time {
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.waiting-info {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+.waiting-label {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.waiting-position {
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 104px;
+  line-height: 0.82;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.waiting-of {
+  font-size: 0.3em;
+  color: var(--text);
+  margin-left: 4px;
+}
+
+.waiting-drink {
+  margin-top: 8px;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text-h);
+}
+
+.waiting-hint {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: #cfcac2;
+}
+
+.waiting-note {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #ffcfae;
+}
+
+.waiting-steps {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.waiting-steps li {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.waiting-steps li::before {
+  content: '';
+  height: 4px;
+  border-radius: 2px;
+  background: #2b303a;
+}
+
+.waiting-steps .done {
+  color: var(--text-h);
+}
+
+.waiting-steps .done::before {
+  background: var(--text-h);
+}
+
+.waiting-steps .now {
+  color: var(--accent-2);
+}
+
+.waiting-steps .now::before {
+  background: linear-gradient(90deg, var(--accent) 50%, #2b303a 50%);
+}
+
+/* Dein Drink */
+
+.order-empty {
+  color: var(--text);
+  margin: 0;
+}
 
 .order-items {
   list-style: none;
@@ -596,103 +1095,208 @@ p {
 }
 
 .order-item {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.order-item-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
 }
 
-.order-item:last-child {
-  border-bottom: none;
+.order-item-name {
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 30px;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--accent-2);
 }
 
-/* Ingredients */
-
-.ingredient-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 24px;
+.recipe-bar {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 
-.ingredient-item {
+.recipe-bar-track {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  gap: 2px;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.recipe-bar-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 14px;
+  color: #cfcac2;
+}
+
+.recipe-bar-legend li {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.ingredient-item.unavailable {
-  background: var(--danger-bg);
-  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+.recipe-bar-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
 }
 
-.ingredient-item.unavailable span {
-  text-decoration: line-through;
-  color: var(--danger);
+.recipe-bar-extras {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
 }
 
-/* Barkeeper */
+/* Theke */
 
 .order-list {
   list-style: none;
   padding: 0;
+  margin: 0 0 24px;
+}
+
+.barkeeper-order {
+  display: grid;
+  gap: 12px;
+}
+
+.barkeeper-order h3 {
+  font-size: 26px;
   margin: 0;
 }
 
 .recipe-list {
   list-style: none;
   padding: 0;
-  margin: 0 0 12px;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .recipe-item {
-  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg);
+}
+
+.recipe-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-2);
+}
+
+.recipe-name::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cat-color, var(--accent));
 }
 
 .recipe-ingredients {
   list-style: none;
   padding: 0;
-  margin: 4px 0;
-  font-size: 14px;
-  color: var(--text);
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.recipe-ingredients li {
+  display: grid;
+  grid-template-columns: 58px 1fr;
 }
 
 .amount {
   font-family: var(--mono);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-h);
 }
 
 .recipe-meta {
   font-size: 13px;
   color: var(--text);
-  margin: 2px 0;
+  margin: 0;
 }
 
 .barkeeper-order .note {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 8px 10px;
+  margin: 0;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: #ffcfae;
+  border-radius: 10px;
+  padding: 8px 12px;
   font-size: 15px;
 }
 
-/* Ratings & Empfehlungen */
+.ingredient-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ingredient-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  color: #d8d4cc;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.ingredient-chip:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
+.ingredient-chip.unavailable {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: #ff9366;
+  text-decoration: line-through;
+}
+
+.ingredient-chip-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+/* Bewertungen & Empfehlungen */
 
 .star-rating {
   display: flex;
@@ -702,11 +1306,16 @@ p {
 .star-rating .star {
   background: none;
   border: none;
-  padding: 0;
-  font-size: 22px;
+  padding: 2px;
+  font-size: 24px;
   line-height: 1;
-  color: var(--border);
+  color: #3a3f4a;
   cursor: pointer;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+.star-rating .star:hover:not(:disabled) {
+  transform: scale(1.12);
 }
 
 .star-rating .star:disabled {
@@ -724,9 +1333,26 @@ p {
   gap: 10px;
 }
 
+.rating-prompt p {
+  margin: 0;
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 20px;
+  text-transform: uppercase;
+  color: var(--text-h);
+}
+
+.rating-prompt strong {
+  color: var(--accent-2);
+}
+
 .order-history summary {
   cursor: pointer;
-  font-weight: 600;
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-h);
 }
 
@@ -736,7 +1362,6 @@ p {
   margin: 12px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .order-history-item {
@@ -744,8 +1369,10 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.recommendations {
-  --cat-color: var(--accent);
+.recommendations h2 {
+  color: var(--accent-2);
 }

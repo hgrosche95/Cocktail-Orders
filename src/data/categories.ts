@@ -1,22 +1,19 @@
 export interface CategoryTheme {
-  icon: string
   color: string
 }
 
-// Helleren, gesättigten Ton pro Kategorie gewählt (statt der frueheren
-// dunkleren Töne fürs helle Theme) - damit `--accent-text` (dunkles
-// Smaragdgrün) auf jeder aktiven Filter-Chip-Farbe lesbar bleibt, ohne
-// Text pro Kategorie unterscheiden zu muessen.
+// Ein Farbton pro Kategorie - im Rooftop-Design nur noch als kleiner
+// Leuchtpunkt an Filter-Chips und Rezeptkarten, nicht mehr als Flaeche.
 const categoryThemes: Record<string, CategoryTheme> = {
-  'Sauer & Erfrischend': { icon: '🍋', color: '#9bc23c' },
-  'Kräftig & Herb': { icon: '🥃', color: '#c2803f' },
-  Aperitivos: { icon: '🍊', color: '#f2884a' },
-  'Süß & Fruchtig': { icon: '🍓', color: '#e8639d' },
-  'Cremig & Kaffee': { icon: '☕', color: '#c4b39f' },
-  Puristisch: { icon: '💧', color: '#5cc2ee' },
+  'Sauer & Erfrischend': { color: '#c4e04a' },
+  'Kräftig & Herb': { color: '#d98a4e' },
+  Aperitivos: { color: '#ff7a45' },
+  'Süß & Fruchtig': { color: '#ff86b0' },
+  'Cremig & Kaffee': { color: '#d9c6ad' },
+  Puristisch: { color: '#8fd3f0' },
 }
 
-const defaultTheme: CategoryTheme = { icon: '🍸', color: 'var(--accent)' }
+const defaultTheme: CategoryTheme = { color: 'var(--accent)' }
 
 export function getCategoryTheme(category: string): CategoryTheme {
   return categoryThemes[category] ?? defaultTheme
