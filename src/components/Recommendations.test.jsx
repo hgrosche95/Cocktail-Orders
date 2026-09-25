@@ -1,12 +1,16 @@
 import { describe, test, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import Recommendations from './Recommendations'
+
+// Die Karten verlinken auf die Detailansicht und brauchen deshalb einen Router.
+const renderWithRouter = (ui) => render(ui, { wrapper: MemoryRouter })
 
 // Mojito: id 6, braucht Rum. Negroni: id 16, braucht keinen Rum.
 describe('Recommendations', () => {
   test('renders nothing when there are no recommendations', () => {
-    const { container } = render(
+    const { container } = renderWithRouter(
       <Recommendations
         recommendations={[]}
         unavailableIngredients={[]}
@@ -18,7 +22,7 @@ describe('Recommendations', () => {
   })
 
   test('shows the recommended cocktails', () => {
-    render(
+    renderWithRouter(
       <Recommendations
         recommendations={[
           { cocktailId: 6, predictedRating: 4.5 },
@@ -34,7 +38,7 @@ describe('Recommendations', () => {
   })
 
   test('hides a recommended cocktail that needs an unavailable ingredient', () => {
-    render(
+    renderWithRouter(
       <Recommendations
         recommendations={[
           { cocktailId: 6, predictedRating: 4.5 },
@@ -52,7 +56,7 @@ describe('Recommendations', () => {
   test('calls onAddToOrder when a recommended cocktail is ordered', async () => {
     const user = userEvent.setup()
     const onAddToOrder = vi.fn()
-    render(
+    renderWithRouter(
       <Recommendations
         recommendations={[{ cocktailId: 16, predictedRating: 4 }]}
         unavailableIngredients={[]}
@@ -60,7 +64,7 @@ describe('Recommendations', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Bestellen' }))
+    await user.click(screen.getByRole('button', { name: 'Negroni bestellen' }))
 
     expect(onAddToOrder).toHaveBeenCalledWith(expect.objectContaining({ id: 16, name: 'Negroni' }))
   })

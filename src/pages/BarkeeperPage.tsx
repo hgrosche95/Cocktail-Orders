@@ -38,9 +38,11 @@ function BarkeeperPage({
 
   return (
     <div>
-      <h2>Offene Bestellungen</h2>
+      <h2>
+        Theke <span className="category-count">{openOrders.length} offen</span>
+      </h2>
       {openOrders.length === 0 ? (
-        <p>Keine offenen Bestellungen.</p>
+        <p className="order-empty">Keine offenen Bestellungen.</p>
       ) : (
         <ul className="order-list">
           {openOrders.map((submittedOrder) => (
@@ -51,37 +53,34 @@ function BarkeeperPage({
                   const theme = getCategoryTheme(item.category)
                   return (
                   <li key={item.orderId} className="recipe-item" style={categoryStyle(theme.color)}>
-                    <strong>
-                      {theme.icon} {item.name}
-                    </strong>
+                    <strong className="recipe-name">{item.name}</strong>
                     <ul className="recipe-ingredients">
                       {item.recipe.ingredients.map((ingredient, index) => (
                         <li key={index}>
-                          {ingredient.amountCl != null ? (
-                            <>
-                              <span className="amount">{ingredient.amountCl} cl</span> {ingredient.name}
-                            </>
-                          ) : (
-                            ingredient.name
-                          )}
-                          {ingredient.note && ` (${ingredient.note})`}
+                          <span className="amount">
+                            {ingredient.amountCl != null ? `${ingredient.amountCl} cl` : ''}
+                          </span>
+                          <span>
+                            {ingredient.name}
+                            {ingredient.note && ` (${ingredient.note})`}
+                          </span>
                         </li>
                       ))}
                     </ul>
-                    <p className="recipe-meta">🧊 {item.recipe.ice}</p>
                     <p className="recipe-meta">
+                      {item.recipe.ice} ·{' '}
                       {item.recipe.servedWithIceCubes
-                        ? 'Mit Eiswürfeln im Glas servieren'
-                        : 'Ohne Eiswürfel im Glas servieren'}
+                        ? 'mit Eiswürfeln im Glas servieren'
+                        : 'ohne Eiswürfel im Glas servieren'}
                     </p>
                   </li>
                   )
                 })}
               </ul>
-              {submittedOrder.note && <p className="note">Anmerkung: {submittedOrder.note}</p>}
+              {submittedOrder.note && <p className="note">„{submittedOrder.note}“</p>}
               <button
                 type="button"
-                className="btn btn-success btn-block"
+                className="btn btn-light btn-block"
                 onClick={() => onMarkAsDone(submittedOrder.orderId)}
               >
                 Erledigt
@@ -91,34 +90,28 @@ function BarkeeperPage({
         </ul>
       )}
 
-      <h2>Zutaten</h2>
+      <h2>Bestand</h2>
+      <p className="section-hint">Antippen, was leer ist – nochmal antippen, wenn es wieder da ist.</p>
       <ul className="ingredient-list">
         {allIngredients.map((ingredient) => {
           const isUnavailable = unavailableIngredients.includes(ingredient)
 
           return (
-            <li
-              key={ingredient}
-              className={isUnavailable ? 'ingredient-item unavailable' : 'ingredient-item'}
-            >
-              <span>{ingredient}</span>
-              {isUnavailable ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  onClick={() => onMarkIngredientAvailable(ingredient)}
-                >
-                  Wieder verfügbar
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  onClick={() => onMarkIngredientUnavailable(ingredient)}
-                >
-                  Als leer markieren
-                </button>
-              )}
+            <li key={ingredient}>
+              <button
+                type="button"
+                className={isUnavailable ? 'ingredient-chip unavailable' : 'ingredient-chip'}
+                aria-pressed={isUnavailable}
+                title={isUnavailable ? 'Wieder verfügbar' : 'Als leer markieren'}
+                onClick={() =>
+                  isUnavailable
+                    ? onMarkIngredientAvailable(ingredient)
+                    : onMarkIngredientUnavailable(ingredient)
+                }
+              >
+                {ingredient}
+                {isUnavailable && <span className="ingredient-chip-tag">leer</span>}
+              </button>
             </li>
           )
         })}

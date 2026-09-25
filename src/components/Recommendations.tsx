@@ -14,7 +14,7 @@ function Recommendations({
   recommendations,
   unavailableIngredients,
   onAddToOrder,
-  title = '✨ Für dich empfohlen',
+  title = 'Unser Tipp für dich',
 }: RecommendationsProps) {
   const recommendedCocktails = recommendations
     .map((rec) => cocktails.find((cocktail) => cocktail.id === rec.cocktailId))

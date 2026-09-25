@@ -1,7 +1,11 @@
 import { describe, test, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import CocktailCard from './CocktailCard'
+
+// Die Karten verlinken auf die Detailansicht und brauchen deshalb einen Router.
+const renderWithRouter = (ui) => render(ui, { wrapper: MemoryRouter })
 
 const cocktail = {
   id: 1,
@@ -13,7 +17,7 @@ const cocktail = {
 
 describe('CocktailCard', () => {
   test('renders name, ingredients, description and movie', () => {
-    render(<CocktailCard cocktail={cocktail} onAddToOrder={() => {}} />)
+    renderWithRouter(<CocktailCard cocktail={cocktail} onAddToOrder={() => {}} />)
 
     expect(screen.getByText('Mojito')).toBeInTheDocument()
     for (const ingredient of cocktail.ingredients) {
@@ -26,7 +30,7 @@ describe('CocktailCard', () => {
   test('does not render a description when there is none', () => {
     const cocktailWithoutDescription = { ...cocktail, description: undefined }
 
-    render(<CocktailCard cocktail={cocktailWithoutDescription} onAddToOrder={() => {}} />)
+    renderWithRouter(<CocktailCard cocktail={cocktailWithoutDescription} onAddToOrder={() => {}} />)
 
     expect(screen.queryByText('Ein erfrischender Drink.')).not.toBeInTheDocument()
   })
@@ -34,9 +38,9 @@ describe('CocktailCard', () => {
   test('calls onAddToOrder with the cocktail when clicked', async () => {
     const user = userEvent.setup()
     const onAddToOrder = vi.fn()
-    render(<CocktailCard cocktail={cocktail} onAddToOrder={onAddToOrder} />)
+    renderWithRouter(<CocktailCard cocktail={cocktail} onAddToOrder={onAddToOrder} />)
 
-    await user.click(screen.getByRole('button', { name: 'Bestellen' }))
+    await user.click(screen.getByRole('button', { name: 'Mojito bestellen' }))
 
     expect(onAddToOrder).toHaveBeenCalledWith(cocktail)
   })

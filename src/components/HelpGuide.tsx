@@ -41,7 +41,7 @@ function HelpGuide() {
 
             <h3>Bestellen</h3>
             <p>
-              Cocktail aus der Karte wählen und auf „Bestellen" klicken. Optional eine
+              Cocktail aus der Karte wählen und auf „+" tippen. Optional eine
               Anmerkung hinzufügen (z.&nbsp;B. „wenig Eis") und abschicken. Sobald der
               Barkeeper deinen Cocktail zubereitet hat, bekommst du eine Benachrichtigung.
             </p>
@@ -64,7 +64,7 @@ function HelpGuide() {
               Nachdem du einen Cocktail abgeholt hast, kannst du ihn bewerten (1-5 Sterne) —
               direkt beim nächsten Bestellen oder jederzeit unter „Meine bisherigen
               Cocktails". Je mehr Gäste bewerten, desto besser werden die Vorschläge unter
-              „Für dich empfohlen".
+              „Unser Tipp für dich".
             </p>
           </div>
         </div>

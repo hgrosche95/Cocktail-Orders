@@ -39,7 +39,7 @@ function OrderForm({ order, onSubmitOrder, hasOpenOrder, initialNote }: OrderFor
   return (
     <form onSubmit={handleSubmit} className="card">
       <label className="field">
-        Anmerkung (optional):
+        Anmerkung an die Theke (optional)
         <textarea
           value={note}
           onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNote(event.target.value)}
