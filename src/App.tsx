@@ -328,13 +328,20 @@ function App() {
     : undefined
   const barkeeperMatch = useMatch('/barkeeper')
   const isArrival = currentUser === '' && !barkeeperMatch
+  // Drink-Detail soll auf einen Handy-Screen passen: der Name liegt direkt
+  // auf der Skyline, und die Tabs entfallen (zurueck geht es ueber "← Karte").
+  const isDrinkDetail = !isArrival && detailCocktail !== undefined
+
+  let headerClassName = 'app-header'
+  if (isArrival) headerClassName += ' app-header-arrival'
+  if (isDrinkDetail) headerClassName += ' app-header-detail'
 
   return (
     <div>
       {/* Der Header ist die Buehne ueber der Skyline und wechselt mit der
           Ansicht: Ankunft (noch nicht angemeldet), Drink-Detail oder die
           normale Marke. */}
-      <header className={isArrival ? 'app-header app-header-arrival' : 'app-header'}>
+      <header className={headerClassName}>
         <div className="app-header-inner">
           {isArrival ? (
             <>
@@ -374,18 +381,19 @@ function App() {
         </div>
       )}
 
-      <nav className="tabs">
-        {/* Kunde bleibt auch in der Drink-Detailansicht markiert */}
-        <NavLink to="/" className={barkeeperMatch ? 'tab' : 'tab active'}>
-          Kunde
-        </NavLink>
-        <NavLink
-          to="/barkeeper"
-          className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
-        >
-          Barkeeper
-        </NavLink>
-      </nav>
+      {!isDrinkDetail && (
+        <nav className="tabs">
+          <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+            Kunde
+          </NavLink>
+          <NavLink
+            to="/barkeeper"
+            className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
+          >
+            Barkeeper
+          </NavLink>
+        </nav>
+      )}
 
       <Routes>
         <Route

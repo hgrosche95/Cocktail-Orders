@@ -89,7 +89,7 @@ body::before {
   max-width: 640px;
   margin: 0 auto;
   min-height: 100svh;
-  padding: 16px 16px 40px;
+  padding: 16px 16px 24px;
 }
 
 h1,
@@ -200,10 +200,31 @@ p {
 }
 
 .drink-title {
-  font-size: clamp(46px, 16vw, 76px);
-  line-height: 0.86;
-  margin: 18px 0 0;
+  font-size: clamp(44px, 14vw, 72px);
+  line-height: 0.88;
+  margin: 0;
   text-wrap: balance;
+  text-shadow: 0 2px 18px rgba(11, 13, 18, 0.7);
+}
+
+/* Drink-Detail: Name und Zurueck-Link liegen ueber der Skyline statt
+   darueber, damit die ganze Seite auf einen Handy-Screen passt. */
+.app-header-detail {
+  padding-top: 40px;
+  margin-bottom: 14px;
+}
+
+.app-header-detail .app-header-inner {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 16px 16px;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 .app-floor {
@@ -462,7 +483,7 @@ p {
 
 .drink-page {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .drink-meta {
@@ -477,8 +498,8 @@ p {
 
 .drink-description {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.4;
   color: #cfcac2;
 }
 
@@ -491,7 +512,7 @@ p {
 
 .drink-facts .card {
   margin: 0;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .drink-facts dt {
@@ -504,16 +525,23 @@ p {
 }
 
 .drink-facts dd {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   font-family: var(--heading);
   font-weight: 700;
-  font-size: 19px;
+  font-size: 17px;
   text-transform: uppercase;
   color: var(--text-h);
 }
 
 .drink-page .field {
   margin-bottom: 0;
+  font-size: 12px;
+}
+
+.drink-page .field input {
+  margin-top: 6px;
+  padding: 10px 12px;
+  font-size: 16px;
 }
 
 .btn-meta {
@@ -865,6 +893,7 @@ p {
 /* Warten: Rheinturm mit Lichtzeituhr */
 
 .waiting-panel {
+  scroll-margin-top: 12px;
   display: grid;
   grid-template-columns: 56px 1fr;
   gap: 18px;

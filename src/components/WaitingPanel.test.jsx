@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import WaitingPanel from './WaitingPanel'
 
@@ -10,6 +10,20 @@ const order = {
 }
 
 describe('WaitingPanel', () => {
+  afterEach(() => {
+    delete Element.prototype.scrollIntoView
+  })
+
+  test('scrolls itself into view when it appears', () => {
+    // jsdom kennt scrollIntoView nicht - fuer den Test nachruesten
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+
+    render(<WaitingPanel order={order} position={2} queueLength={2} />)
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+  })
+
   test('shows the position, the drink and the note', () => {
     render(<WaitingPanel order={order} position={3} queueLength={4} />)
 

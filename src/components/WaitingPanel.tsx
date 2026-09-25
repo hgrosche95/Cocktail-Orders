@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import RheinturmClock from './RheinturmClock'
 import type { SubmittedOrder } from '../types'
 
@@ -14,9 +15,17 @@ function WaitingPanel({ order, position, queueLength }: WaitingPanelProps) {
   const drinkName = order.items[0]?.name ?? 'Dein Drink'
   const isNext = position === 1
   const ahead = position - 1
+  const panelRef = useRef<HTMLElement>(null)
+
+  // Erscheint die Ansicht (gerade bestellt oder App mit offener Bestellung
+  // geoeffnet), rueckt sie den Rheinturm direkt ins Bild. Optionaler Aufruf,
+  // weil jsdom in den Tests kein scrollIntoView kennt.
+  useEffect(() => {
+    panelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }, [])
 
   return (
-    <section className="card waiting-panel">
+    <section className="card waiting-panel" ref={panelRef}>
       <RheinturmClock />
       <div className="waiting-info">
         <span className="waiting-label">Du bist</span>
