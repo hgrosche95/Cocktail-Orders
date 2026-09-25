@@ -49,8 +49,9 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
     event.preventDefault()
     if (!cocktail || hasOpenOrder || isUnavailable) return
     onOrder(cocktail, note)
+    // Zur Karte zurueck - dort erscheint die Warteansicht mit dem Rheinturm
+    // und scrollt sich selbst ins Bild, sobald der Server die Bestellung kennt.
     navigate('/')
-    window.scrollTo({ top: 0 })
   }
 
   return (
@@ -78,10 +79,11 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
       </dl>
 
       <label className="field">
-        Anmerkung an die Theke (optional)
-        <textarea
+        Anmerkung an die Theke
+        <input
+          type="text"
           value={note}
-          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setNote(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
           maxLength={200}
           placeholder="z. B. mit Orangenscheibe"
         />
