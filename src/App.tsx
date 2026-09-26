@@ -17,6 +17,15 @@ const API_BASE = import.meta.env.VITE_API_URL ?? `http://${window.location.hostn
 const API_URL = `${API_BASE}/api`
 const WS_URL = API_BASE.replace(/^http/, 'ws')
 
+// Wirft bei Fehlerstatus, damit kein Fehler-Body (z.B. {"error": ...}) im
+// State landet, wo eine Liste erwartet wird.
+function getJson<T>(url: string): Promise<T> {
+  return fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return res.json()
+  })
+}
+
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }
@@ -47,43 +56,54 @@ function App() {
   )
   const currentUserRef = useRef(currentUser)
 
+  // Ist der Server nicht erreichbar (kein Netz, Container wacht gerade auf),
+  // zeigt die Seite einen Hinweis, statt unbehandelte Fehler in die Konsole
+  // zu werfen.
+  const [isServerUnreachable, setIsServerUnreachable] = useState(false)
+  const reportUnreachable = useCallback(() => setIsServerUnreachable(true), [])
+
   useEffect(() => {
     currentUserRef.current = currentUser
   }, [currentUser])
 
   const fetchHistory = useCallback((guest: string) => {
-    fetch(`${API_URL}/orders/history?guest=${encodeURIComponent(guest)}`)
-      .then((res) => res.json())
-      .then((data: SubmittedOrder[]) => setHistory(data))
-  }, [])
+    getJson<SubmittedOrder[]>(`${API_URL}/orders/history?guest=${encodeURIComponent(guest)}`)
+      .then(setHistory)
+      .catch(reportUnreachable)
+  }, [reportUnreachable])
 
   const fetchRatings = useCallback((guest: string) => {
-    fetch(`${API_URL}/ratings?guest=${encodeURIComponent(guest)}`)
-      .then((res) => res.json())
-      .then((data: { cocktailId: number; rating: number }[]) => {
+    getJson<{ cocktailId: number; rating: number }[]>(
+      `${API_URL}/ratings?guest=${encodeURIComponent(guest)}`
+    )
+      .then((data) => {
         const map: Record<number, number> = {}
         for (const { cocktailId, rating } of data) map[cocktailId] = rating
         setRatings(map)
       })
-  }, [])
+      .catch(reportUnreachable)
+  }, [reportUnreachable])
 
   const fetchRecommendations = useCallback((guest: string) => {
-    fetch(`${API_URL}/recommendations?guest=${encodeURIComponent(guest)}`)
-      .then((res) => res.json())
-      .then((data: Recommendation[]) => setRecommendations(data))
-  }, [])
+    getJson<Recommendation[]>(`${API_URL}/recommendations?guest=${encodeURIComponent(guest)}`)
+      .then(setRecommendations)
+      .catch(reportUnreachable)
+  }, [reportUnreachable])
 
   useEffect(() => {
     function fetchOpenOrders() {
-      fetch(`${API_URL}/orders`)
-        .then((res) => res.json())
-        .then((data: SubmittedOrder[]) => setOpenOrders(data))
+      getJson<SubmittedOrder[]>(`${API_URL}/orders`)
+        .then((data) => {
+          setOpenOrders(data)
+          setIsServerUnreachable(false)
+        })
+        .catch(reportUnreachable)
     }
 
     function fetchUnavailableIngredients() {
-      fetch(`${API_URL}/unavailable-ingredients`)
-        .then((res) => res.json())
-        .then((data: string[]) => setUnavailableIngredients(data))
+      getJson<string[]>(`${API_URL}/unavailable-ingredients`)
+        .then(setUnavailableIngredients)
+        .catch(reportUnreachable)
     }
 
     fetchOpenOrders()
@@ -105,8 +125,17 @@ function App() {
       }
     })
 
-    return () => socket.close()
-  }, [fetchHistory, fetchRatings, fetchRecommendations])
+    return () => {
+      // React-StrictMode startet den Effekt in der Entwicklung zweimal. Ein
+      // close() mitten im Verbindungsaufbau meldet der Browser als Warnung,
+      // deshalb dann erst nach dem Aufbau schliessen.
+      if (socket.readyState === WebSocket.CONNECTING) {
+        socket.addEventListener('open', () => socket.close())
+      } else {
+        socket.close()
+      }
+    }
+  }, [fetchHistory, fetchRatings, fetchRecommendations, reportUnreachable])
 
   useEffect(() => {
     if (!currentUser) return
@@ -179,6 +208,7 @@ function App() {
         setOpenOrders((prevOpenOrders) => [...prevOpenOrders, newOrder])
         setOrder([])
       })
+      .catch(reportUnreachable)
   }
 
   // Das Token vom Server ist der eigentliche Nachweis: die Barkeeper-Routen
@@ -227,7 +257,7 @@ function App() {
       setOpenOrders((prevOpenOrders) =>
         prevOpenOrders.filter((o) => o.orderId !== orderId)
       )
-    })
+    }, reportUnreachable)
   }
 
   function handleRateCocktail(cocktailId: number, rating: number) {
@@ -238,7 +268,7 @@ function App() {
     }).then(() => {
       setRatings((prev) => ({ ...prev, [cocktailId]: rating }))
       fetchRecommendations(currentUser)
-    })
+    }, reportUnreachable)
   }
 
   function handleDismissRatingPrompt(orderId: string) {
@@ -308,7 +338,7 @@ function App() {
     }).then((res) => {
       if (!res.ok) return
       setUnavailableIngredients((prev) => [...prev, ingredient])
-    })
+    }, reportUnreachable)
   }
 
   function handleMarkIngredientAvailable(ingredient: string) {
@@ -319,7 +349,7 @@ function App() {
     }).then((res) => {
       if (!res.ok) return
       setUnavailableIngredients((prev) => prev.filter((i) => i !== ingredient))
-    })
+    }, reportUnreachable)
   }
 
   const drinkMatch = useMatch('/drink/:id')
@@ -376,6 +406,15 @@ function App() {
             <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
           </p>
           <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
+            Schließen
+          </button>
+        </div>
+      )}
+
+      {isServerUnreachable && (
+        <div className="notification">
+          <p>Die Bar ist gerade nicht erreichbar. Versuch es gleich noch einmal.</p>
+          <button type="button" className="btn" onClick={() => setIsServerUnreachable(false)}>
             Schließen
           </button>
         </div>

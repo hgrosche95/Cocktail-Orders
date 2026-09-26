@@ -12,11 +12,13 @@ function BarkeeperLogin({ onLogin }: BarkeeperLoginProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    onLogin(password).then((success) => {
-      if (!success) {
-        setError('Falsches Passwort.')
-      }
-    })
+    onLogin(password)
+      .then((success) => {
+        if (!success) {
+          setError('Falsches Passwort.')
+        }
+      })
+      .catch(() => setError('Server nicht erreichbar.'))
   }
 
   return (
