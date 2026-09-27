@@ -12,10 +12,11 @@ notified as soon as their order is ready.
 ## Features
 
 - Guest login by name (no password, just an identifier for the session)
-- Movie-themed cocktail menu, filterable by category
+- Movie-themed cocktail menu, filterable by category, styled as a rooftop bar above Düsseldorf (skyline header with Rheinturm, Stadttor and Medienhafen)
+- Detail page per drink (`/drink/:id`) with a recipe bar, facts, note field and direct order
 - One-click order flow with an optional note, auto-scrolls to the order form
 - One open order per guest at a time, with clear feedback if a second one is attempted
-- Live queue counter showing guests how many orders are ahead of them
+- Waiting panel after ordering: live queue position next to a Rheinturm light clock that shows the current time
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
 - Free-text cocktail ordering ("something bitter, no rum, without ice") powered by an LLM (Groq): a clear single match (plus any serving note like "no ice") goes straight into the order form to review and confirm; an ambiguous wish shows a pick-list instead
