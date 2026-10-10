@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import cocktails from '../data/cocktails'
+import { useMenu } from '../data/menu'
 import type { Cocktail } from '../data/cocktails'
 import { getCategoryTheme } from '../data/categories'
 import CocktailCard from './CocktailCard'
@@ -27,6 +27,7 @@ interface CocktailListProps {
 }
 
 function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProps) {
+  const cocktails = useMenu()
   const availableCocktails = cocktails.filter(
     (cocktail) =>
       !cocktail.ingredients.some((ingredient) =>

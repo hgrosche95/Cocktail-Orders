@@ -48,3 +48,17 @@ model Rating {
   @@unique([guestName, cocktailId])
   @@map("ratings")
 }
+
+// Drinks, die die Theke selbst angelegt hat. Die Grundkarte bleibt in
+// shared/cocktails.json; menu.js fuegt beides zusammen. IDs starten bei
+// 1001 (Sequenz in der Migration), die Grundkarte nutzt nur IDs < 1000.
+model CustomCocktail {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  // Kategorie, Film, Beschreibung, Rezept - dieselbe Form wie ein Eintrag
+  // in shared/cocktails.json (ohne id, name und die flache Zutatenliste).
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@map("custom_cocktails")
+}

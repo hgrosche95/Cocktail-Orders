@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { sendJson } from '../api'
-import cocktails from '../data/cocktails'
 import type { Cocktail } from '../data/cocktails'
 import type { Recommendation } from '../types'
 
 interface UseWishOptions {
+  cocktails: Cocktail[]
   unavailableIngredients: string[]
   // Genau ein passender Cocktail: direkt in die Bestellung uebernehmen.
   onSingleMatch: (cocktail: Cocktail) => void
 }
 
 /** Freitext-Wunsch ("etwas Bitteres, ohne Rum") -> passende Cocktails via Server/Groq. */
-export function useWish({ unavailableIngredients, onSingleMatch }: UseWishOptions) {
+export function useWish({ cocktails, unavailableIngredients, onSingleMatch }: UseWishOptions) {
   const [textRecommendations, setTextRecommendations] = useState<Recommendation[]>([])
   const [isTextRecommending, setIsTextRecommending] = useState(false)
   const [wishNote, setWishNote] = useState('')

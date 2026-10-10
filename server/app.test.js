@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterAll, vi } from 'vitest'
 import request from 'supertest'
 import { prisma } from './prisma.js'
 import { createApp } from './app.js'
-import { cocktails } from './menu.js'
+import { cocktails, FIRST_CUSTOM_ID } from './menu.js'
 
 function buildTestApp(overrides = {}) {
   return createApp({
@@ -46,6 +46,7 @@ beforeEach(async () => {
   await prisma.order.deleteMany()
   await prisma.unavailableIngredient.deleteMany()
   await prisma.rating.deleteMany()
+  await prisma.customCocktail.deleteMany()
 })
 
 afterAll(async () => {
@@ -598,6 +599,157 @@ describe('GET /api/recommendations', () => {
     const response = await request(app).get('/api/recommendations').query({ guest: 'Max' })
 
     expect(response.body).toEqual([{ cocktailId: 2, predictedRating: 4 }])
+  })
+})
+
+describe('menu', () => {
+  let app
+  let token
+
+  const tiki = {
+    name: 'Rooftop Tiki',
+    category: 'Süß & Fruchtig',
+    movie: 'Hausrezept',
+    description: 'Fruchtig, mit Rum.',
+    recipe: {
+      ingredients: [
+        { name: 'Rum', amountCl: 5 },
+        { name: 'Ananassaft', amountCl: 10 },
+        { name: 'Minze', note: 'zum Garnieren' },
+      ],
+      ice: 'Auf Crushed Ice',
+      servedWithIceCubes: true,
+    },
+  }
+
+  beforeEach(async () => {
+    app = buildTestApp()
+    token = await barkeeperToken(app)
+  })
+
+  function addCocktail(body) {
+    return request(app).post('/api/menu').set('Authorization', `Bearer ${token}`).send(body)
+  }
+
+  function removeCocktail(id) {
+    return request(app).delete(`/api/menu/${id}`).set('Authorization', `Bearer ${token}`)
+  }
+
+  test('lists the base menu', async () => {
+    const response = await request(app).get('/api/menu')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual(cocktails)
+  })
+
+  test('keeps all base menu ids below the custom range', () => {
+    expect(Math.max(...cocktails.map((c) => c.id))).toBeLessThan(FIRST_CUSTOM_ID)
+  })
+
+  test('adds a cocktail that guests can see, order and rate', async () => {
+    const onChange = vi.fn()
+    app = buildTestApp({ onChange })
+    token = await barkeeperToken(app)
+
+    const created = await addCocktail(tiki)
+
+    expect(created.status).toBe(201)
+    expect(created.body).toMatchObject({
+      name: 'Rooftop Tiki',
+      category: 'Süß & Fruchtig',
+      ingredients: ['Rum', 'Ananassaft', 'Minze'],
+      custom: true,
+    })
+    expect(created.body.id).toBeGreaterThanOrEqual(FIRST_CUSTOM_ID)
+    expect(onChange).toHaveBeenCalledTimes(1)
+
+    const menu = await request(app).get('/api/menu')
+    expect(menu.body.at(-1)).toEqual(created.body)
+
+    const order = await request(app)
+      .post('/api/orders')
+      .send({ name: 'Max', items: [{ id: created.body.id }] })
+    expect(order.status).toBe(201)
+    expect(order.body.items[0].name).toBe('Rooftop Tiki')
+  })
+
+  test('normalizes whitespace and drops empty optional fields', async () => {
+    const created = await addCocktail({
+      name: '  Rooftop\n Tiki ',
+      category: 'Süß & Fruchtig',
+      recipe: { ingredients: [{ name: 'Rum', amountCl: '' }] },
+    })
+
+    expect(created.status).toBe(201)
+    expect(created.body).toMatchObject({
+      name: 'Rooftop Tiki',
+      movie: '',
+      recipe: { ingredients: [{ name: 'Rum' }], ice: '', servedWithIceCubes: false },
+    })
+    expect(created.body).not.toHaveProperty('description')
+  })
+
+  test('is barkeeper-only', async () => {
+    const response = await request(app).post('/api/menu').send(tiki)
+
+    expect(response.status).toBe(401)
+  })
+
+  test.each([
+    ['a missing name', { ...tiki, name: '' }],
+    ['a too long name', { ...tiki, name: 'x'.repeat(61) }],
+    ['an unknown category', { ...tiki, category: 'Erfunden' }],
+    ['no ingredients', { ...tiki, recipe: { ...tiki.recipe, ingredients: [] } }],
+    ['too many ingredients', { ...tiki, recipe: { ...tiki.recipe, ingredients: Array.from({ length: 13 }, (_, i) => ({ name: `Zutat ${i}` })) } }],
+    ['an ingredient without name', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ amountCl: 4 }] } }],
+    ['a duplicate ingredient', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum' }, { name: 'rum' }] } }],
+    ['a negative amount', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: -1 }] } }],
+    ['a huge amount', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: 51 }] } }],
+    ['an amount as text', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: '4' }] } }],
+  ])('rejects %s', async (_label, body) => {
+    const response = await addCocktail(body)
+
+    expect(response.status).toBe(400)
+  })
+
+  test('rejects a name that is already on the menu, ignoring case', async () => {
+    const baseName = await addCocktail({ ...tiki, name: cocktails[0].name.toUpperCase() })
+    expect(baseName.status).toBe(409)
+
+    await addCocktail(tiki)
+    const again = await addCocktail({ ...tiki, name: 'rooftop tiki' })
+    expect(again.status).toBe(409)
+  })
+
+  test('removes a custom cocktail; it can no longer be ordered', async () => {
+    const { body } = await addCocktail(tiki)
+
+    const response = await removeCocktail(body.id)
+
+    expect(response.status).toBe(204)
+    expect((await request(app).get('/api/menu')).body).toEqual(cocktails)
+    const order = await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: body.id }] })
+    expect(order.status).toBe(400)
+  })
+
+  test('does not remove base menu cocktails', async () => {
+    const response = await removeCocktail(cocktails[0].id)
+
+    expect(response.status).toBe(404)
+    expect((await request(app).get('/api/menu')).body).toHaveLength(cocktails.length)
+  })
+
+  test('keeps a removed cocktail in the history of guests who had it', async () => {
+    const { body } = await addCocktail(tiki)
+    const order = await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: body.id }] })
+    await request(app)
+      .patch(`/api/orders/${order.body.orderId}/complete`)
+      .set('Authorization', `Bearer ${token}`)
+
+    await removeCocktail(body.id)
+
+    const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+    expect(history.body[0].items[0].name).toBe('Rooftop Tiki')
   })
 })
 

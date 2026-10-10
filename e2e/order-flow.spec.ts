@@ -138,3 +138,51 @@ test('the bar statistics count a served drink live', async ({ browser }) => {
   await expect(stats.getByRole('heading', { name: 'Meistbestellt' })).toBeVisible()
   await expect(stats.locator('.stats-bar-label', { hasText: 'Cable Car' }).first()).toBeVisible()
 })
+
+test('the bar adds a drink, guests see it live and can order it, then it is removed', async ({
+  browser,
+}) => {
+  const drinkName = `E2E Tiki ${Date.now()}`
+  const guestName = `E2E-${Date.now()}`
+  const guest = await (await browser.newContext()).newPage()
+  const bar = await (await browser.newContext()).newPage()
+
+  await guest.goto('/')
+  await guest.getByLabel('Wer kommt hoch?').fill(guestName)
+  await guest.getByRole('button', { name: /Hochfahren/ }).click()
+  const guestDrink = guest.getByRole('button', { name: `${drinkName} bestellen` })
+  await expect(guest.getByRole('button', { name: 'Cable Car bestellen' })).toBeVisible()
+  await expect(guestDrink).toHaveCount(0)
+
+  await bar.goto('/barkeeper')
+  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByRole('button', { name: 'Anmelden' }).click()
+  await bar.getByRole('link', { name: 'Karte' }).click()
+  await bar.getByLabel('Name', { exact: true }).fill(drinkName)
+  await bar.getByLabel('Kategorie').selectOption('Süß & Fruchtig')
+  await bar.getByLabel('Zutat 1', { exact: true }).fill('Rum')
+  await bar.getByLabel('Menge in cl für Zutat 1').fill('5')
+  await bar.getByRole('button', { name: '+ Zutat' }).click()
+  await bar.getByLabel('Zutat 2', { exact: true }).fill('Ananassaft')
+  await bar.getByRole('button', { name: 'Auf die Karte setzen' }).click()
+  await expect(bar.getByRole('status')).toContainText(drinkName)
+
+  try {
+    // Gast sieht den neuen Drink ohne Neuladen und kann ihn bestellen.
+    await guestDrink.click()
+    await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
+    await bar.getByRole('link', { name: '← Theke' }).click()
+    const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
+    await expect(barOrder).toContainText(drinkName)
+    await expect(barOrder).toContainText('Ananassaft')
+    await barOrder.getByRole('button', { name: 'Erledigt' }).click()
+    await expect(guest.getByText('Deine Bestellung ist fertig!')).toBeVisible()
+  } finally {
+    // Drink wieder entfernen, die Datenbank wird nicht geleert.
+    await bar.goto('/barkeeper/karte')
+    await bar.getByRole('button', { name: `${drinkName} entfernen` }).click()
+    await bar.getByRole('button', { name: 'Ja, entfernen' }).click()
+  }
+
+  await expect(guestDrink).toHaveCount(0)
+})

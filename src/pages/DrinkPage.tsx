@@ -57,7 +57,8 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
   return (
     <form className="drink-page" onSubmit={handleSubmit}>
       <p className="drink-meta">
-        {cocktail.category} · aus „{cocktail.movie}“
+        {cocktail.category}
+        {cocktail.movie && ` · aus „${cocktail.movie}“`}
       </p>
       {cocktail.description && <p className="drink-description">{cocktail.description}</p>}
 

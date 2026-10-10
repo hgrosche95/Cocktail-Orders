@@ -445,7 +445,9 @@ p {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select,
+.ingredient-row input {
   display: block;
   width: 100%;
   margin-top: 8px;
@@ -463,7 +465,8 @@ p {
 }
 
 .field input::placeholder,
-.field textarea::placeholder {
+.field textarea::placeholder,
+.ingredient-row input::placeholder {
   color: #6d7380;
 }
 
@@ -473,7 +476,9 @@ p {
 }
 
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus,
+.ingredient-row input:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -1556,4 +1561,108 @@ p {
   margin: 12px 0 0;
   font-size: 14px;
   color: var(--text);
+}
+
+/* Karte bearbeiten (Theke) */
+
+.bar-header-links {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-cocktail-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.custom-cocktail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.custom-cocktail-name {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.custom-cocktail-meta {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.custom-cocktail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ingredient-rows {
+  border: 0;
+  margin: 0 0 16px;
+  padding: 0;
+  min-width: 0;
+}
+
+.ingredient-rows legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 4.5em) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ingredient-row input {
+  margin-top: 0;
+  padding: 10px;
+  font-size: 15px;
+}
+
+/* Auf dem Handy: Zutat und Menge oben, Hinweis darunter. */
+@media (max-width: 520px) {
+  .ingredient-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 4.5em) auto;
+  }
+
+  .ingredient-row input:nth-child(3) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+  }
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: var(--text-h);
+  font-size: 16px;
+}
+
+.checkbox-field input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.success-message {
+  color: var(--success);
+  font-size: 15px;
 }
