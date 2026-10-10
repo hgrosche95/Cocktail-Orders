@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { apiFetch, sendJson } from '../api'
 
 /**
@@ -25,18 +25,21 @@ export function useBarkeeperAuth() {
   }
 
   /** fetch mit Token; bei 401 wird der Barkeeper abgemeldet. */
-  function barkeeperFetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const headers = new Headers(init.headers)
-    headers.set('Authorization', `Bearer ${barkeeperToken}`)
-    return apiFetch(path, { ...init, headers }).then((res) => {
-      // Token abgelaufen (nach 12 h) oder Passwort geaendert: neu anmelden.
-      if (res.status === 401) {
-        sessionStorage.removeItem('barkeeperToken')
-        setBarkeeperToken(null)
-      }
-      return res
-    })
-  }
+  const barkeeperFetch = useCallback(
+    (path: string, init: RequestInit = {}): Promise<Response> => {
+      const headers = new Headers(init.headers)
+      headers.set('Authorization', `Bearer ${barkeeperToken}`)
+      return apiFetch(path, { ...init, headers }).then((res) => {
+        // Token abgelaufen (nach 12 h) oder Passwort geaendert: neu anmelden.
+        if (res.status === 401) {
+          sessionStorage.removeItem('barkeeperToken')
+          setBarkeeperToken(null)
+        }
+        return res
+      })
+    },
+    [barkeeperToken]
+  )
 
   return { isBarkeeperAuthenticated: barkeeperToken !== null, login, barkeeperFetch }
 }

@@ -106,3 +106,35 @@ test('a guest can cancel their open order, the bar sees it disappear live', asyn
   await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
   await expect(guest.getByRole('button', { name: 'Bestellung abschicken' })).toBeEnabled()
 })
+
+test('the bar statistics count a served drink live', async ({ browser }) => {
+  const guestName = `E2E-${Date.now()}`
+  const guest = await (await browser.newContext()).newPage()
+  const bar = await (await browser.newContext()).newPage()
+  const stats = await (await browser.newContext()).newPage()
+
+  for (const page of [bar, stats]) {
+    await page.goto('/barkeeper')
+    await page.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+    await page.getByRole('button', { name: 'Anmelden' }).click()
+  }
+  await stats.getByRole('link', { name: 'Statistik' }).click()
+  // Barkeeper-Ansicht: normaler Header, nicht die Ankunft fuer Gaeste.
+  await expect(stats.getByText('Über den Dächern')).toHaveCount(0)
+  const served = stats.locator('.stats-tile', { hasText: 'Serviert' }).locator('dd')
+  await expect(served).toHaveText(/^\d+$/)
+  const before = Number(await served.textContent())
+
+  await guest.goto('/')
+  await guest.getByLabel('Wer kommt hoch?').fill(guestName)
+  await guest.getByRole('button', { name: /Hochfahren/ }).click()
+  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
+
+  const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
+  await barOrder.getByRole('button', { name: 'Erledigt' }).click()
+
+  await expect(served).toHaveText(String(before + 1))
+  await expect(stats.getByRole('heading', { name: 'Meistbestellt' })).toBeVisible()
+  await expect(stats.locator('.stats-bar-label', { hasText: 'Cable Car' }).first()).toBeVisible()
+})

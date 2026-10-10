@@ -6,6 +6,8 @@ import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
 import Skyline from './components/Skyline'
 import DrinkPage from './pages/DrinkPage'
+import StatsPage from './pages/StatsPage'
+import type { Stats } from './pages/StatsPage'
 import cocktails from './data/cocktails'
 import { connectLiveUpdates } from './liveUpdates'
 import { WS_URL, getJson, sendJson } from './api'
@@ -28,6 +30,9 @@ function App() {
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
+  // Zaehlt jede Live-Aenderung mit; Ansichten, die selbst laden (Statistik),
+  // laden darauf neu.
+  const [liveVersion, setLiveVersion] = useState(0)
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -68,6 +73,7 @@ function App() {
     }
 
     function refreshAll() {
+      setLiveVersion((version) => version + 1)
       fetchOpenOrders()
       fetchUnavailableIngredients()
 
@@ -184,6 +190,14 @@ function App() {
     }, reportUnreachable)
   }
 
+  const loadStats = useCallback(
+    (since: string | null): Promise<Stats | null> => {
+      const query = since ? `?since=${encodeURIComponent(since)}` : ''
+      return barkeeperFetch(`/stats${query}`).then((res) => (res.ok ? res.json() : null))
+    },
+    [barkeeperFetch]
+  )
+
   function handleDismissRatingPrompt(orderId: string) {
     setDismissedHistoryOrderId(orderId)
   }
@@ -223,7 +237,7 @@ function App() {
   const detailCocktail = drinkMatch
     ? cocktails.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
     : undefined
-  const barkeeperMatch = useMatch('/barkeeper')
+  const barkeeperMatch = useMatch('/barkeeper/*')
   const isArrival = currentUser === '' && !barkeeperMatch
   // Drink-Detail soll auf einen Handy-Screen passen: der Name liegt direkt
   // auf der Skyline, und die Tabs entfallen (zurueck geht es ueber "← Karte").
@@ -348,6 +362,16 @@ function App() {
                 queueLength={openOrders.length}
                 unavailableIngredients={unavailableIngredients}
               />
+            )
+          }
+        />
+        <Route
+          path="/barkeeper/statistik"
+          element={
+            isBarkeeperAuthenticated ? (
+              <StatsPage loadStats={loadStats} liveVersion={liveVersion} />
+            ) : (
+              <BarkeeperLogin onLogin={handleBarkeeperLogin} />
             )
           }
         />
