@@ -5,7 +5,8 @@ import { recommendCocktails } from './recommendations.js'
 import { computeStats } from './stats.js'
 import { recommendByText as defaultRecommendByText } from './groq.js'
 import { createBarkeeperToken, passwordMatches, requireBarkeeper } from './barkeeperAuth.js'
-import { cocktails, findCocktail } from './menu.js'
+import { categories, createMenu } from './menu.js'
+import { parseCocktailInput } from './cocktailInput.js'
 
 const MAX_NAME_LENGTH = 50
 const MAX_NOTE_LENGTH = 200
@@ -27,6 +28,7 @@ export function createApp({
 } = {}) {
   const app = express()
   const barkeeperOnly = requireBarkeeper(barkeeperPassword)
+  const menu = createMenu(prisma)
 
   // Genau ein Proxy (Azure-Container-Apps-Ingress) vor dem Server, sonst waere
   // req.ip fuer alle Anfragen die Proxy-IP und alle teilten sich ein Limit.
@@ -61,6 +63,63 @@ export function createApp({
       }
     }
   )
+
+  // Ganze Karte: Grundkarte aus shared/cocktails.json plus die Drinks, die
+  // die Theke angelegt hat (custom: true).
+  app.get('/api/menu', async (req, res) => {
+    res.json(await menu.all())
+  })
+
+  app.post('/api/menu', barkeeperOnly, async (req, res) => {
+    const parsed = parseCocktailInput(req.body, { categories })
+    if (parsed.error) {
+      res.status(400).json({ error: parsed.error })
+      return
+    }
+
+    const { name, data } = parsed.value
+    const key = name.toLocaleLowerCase('de')
+    const existing = await menu.all()
+    if (existing.some((cocktail) => cocktail.name.toLocaleLowerCase('de') === key)) {
+      res.status(409).json({ error: 'a cocktail with this name already exists' })
+      return
+    }
+
+    let row
+    try {
+      row = await prisma.customCocktail.create({ data: { name, data } })
+    } catch (error) {
+      // Gleichzeitig angelegt: der Unique-Index auf name greift.
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'a cocktail with this name already exists' })
+        return
+      }
+      throw error
+    }
+
+    menu.invalidate()
+    onChange()
+    const findCocktail = await menu.finder()
+    res.status(201).json(findCocktail(row.id))
+  })
+
+  // Nur Drinks der Theke; die Grundkarte aendert sich nur per Commit.
+  // Bestellungen behalten ihre Kopie des Drinks, Bewertungen bleiben stehen
+  // (Statistik und Empfehlungen ueberspringen Drinks, die es nicht mehr gibt).
+  app.delete('/api/menu/:id', barkeeperOnly, async (req, res) => {
+    const id = Number(req.params.id)
+    const { count } = Number.isInteger(id)
+      ? await prisma.customCocktail.deleteMany({ where: { id } })
+      : { count: 0 }
+    if (count === 0) {
+      res.status(404).json({ error: 'no custom cocktail with this id' })
+      return
+    }
+
+    menu.invalidate()
+    onChange()
+    res.status(204).end()
+  })
 
   app.get('/api/orders', async (req, res) => {
     // Die Reihenfolge ist die Warteschlange: der Gast leitet daraus seine
@@ -113,6 +172,7 @@ export function createApp({
 
     // Die Positionen werden aus der Server-Karte gebaut, nicht vom Client
     // uebernommen: der Client liefert nur, WELCHER Cocktail es ist.
+    const findCocktail = await menu.finder()
     const menuItems = items.map((item) => findCocktail(item?.id))
     if (menuItems.some((cocktail) => !cocktail)) {
       res.status(400).json({ error: 'unknown cocktail' })
@@ -236,6 +296,7 @@ export function createApp({
       res.status(400).json({ error: `guestName must be 1-${MAX_NAME_LENGTH} characters` })
       return
     }
+    const findCocktail = await menu.finder()
     if (!findCocktail(cocktailId)) {
       res.status(400).json({ error: 'unknown cocktail' })
       return
@@ -305,10 +366,12 @@ export function createApp({
       prisma.order.count({ where: { completedAt: null } }),
     ])
 
+    const findCocktail = await menu.finder()
     res.json({ ...computeStats({ servedOrders, ratings, findCocktail }), openOrders })
   })
 
-  // Die Karte fuer den System-Prompt kommt aus shared/cocktails.json, nicht
+  // Die Karte fuer den System-Prompt kommt vom Server (Grundkarte plus
+  // Drinks der Theke, siehe menu.js), nicht
   // vom Client: sonst koennte jeder beliebigen Text in den vertrauenswuerdigen
   // Teil des Prompts schreiben. Jede Anfrage kostet Groq-Kontingent, deshalb
   // Limit pro IP und Laengengrenze.
@@ -321,7 +384,7 @@ export function createApp({
     }
 
     try {
-      const result = await recommendByText({ text, cocktails })
+      const result = await recommendByText({ text, cocktails: await menu.all() })
       res.json(result)
     } catch (error) {
       console.error('Groq-Anfrage fehlgeschlagen:', error)
