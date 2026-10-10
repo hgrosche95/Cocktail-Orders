@@ -129,9 +129,20 @@ export function createApp({
     }
 
     const orderId = crypto.randomUUID()
-    await prisma.order.create({
-      data: { orderId, name: trimmedName, items: orderItems, note },
-    })
+    try {
+      await prisma.order.create({
+        data: { orderId, name: trimmedName, items: orderItems, note },
+      })
+    } catch (error) {
+      // Die Pruefung oben ist nicht atomar: kommen zwei Requests gleichzeitig
+      // an, sehen beide noch keine offene Bestellung. Der partielle Unique-
+      // Index (siehe schema.prisma) laesst dann nur einen durch.
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'guest already has an open order' })
+        return
+      }
+      throw error
+    }
 
     onChange()
     res.status(201).json({ orderId, name: trimmedName, items: orderItems, note })
