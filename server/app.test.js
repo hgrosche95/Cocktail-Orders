@@ -63,6 +63,40 @@ describe('GET /api/ping', () => {
   })
 })
 
+describe('error handling', () => {
+  test('answers unknown API paths with JSON 404', async () => {
+    const response = await request(buildTestApp()).get('/api/does-not-exist')
+
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not_found' })
+  })
+
+  test('answers malformed JSON with JSON 400', async () => {
+    const response = await request(buildTestApp())
+      .post('/api/orders')
+      .set('Content-Type', 'application/json')
+      .send('{"name": ')
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'entity.parse.failed' })
+  })
+
+  test('answers database errors with JSON 500 without details', async () => {
+    const failingPrisma = {
+      order: { findMany: () => Promise.reject(new Error('connection refused: secret-host')) },
+    }
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const response = await request(buildTestApp({ prisma: failingPrisma })).get('/api/orders')
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'internal_error' })
+    expect(response.text).not.toContain('secret-host')
+    expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
+  })
+})
+
 describe('POST /api/barkeeper-login', () => {
   test('succeeds with the correct password and returns a token', async () => {
     const app = buildTestApp()
