@@ -16,6 +16,7 @@ notified as soon as their order is ready.
 - Detail page per drink (`/drink/:id`) with a recipe bar, facts, note field and direct order
 - One-click order flow with an optional note, auto-scrolls to the order form
 - One open order per guest at a time, with clear feedback if a second one is attempted
+- Guests can cancel their own open order (with a confirm step); the bar sees it disappear live
 - Waiting panel after ordering: live queue position next to a Rheinturm light clock that shows the current time
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically

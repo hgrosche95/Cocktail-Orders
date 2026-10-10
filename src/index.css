@@ -415,6 +415,15 @@ p {
   color: var(--accent-2);
 }
 
+.btn-danger {
+  background: var(--danger);
+  color: var(--accent-text);
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
 .btn-small {
   padding: 5px 12px;
   min-height: 32px;
@@ -1108,6 +1117,25 @@ p {
 
 .waiting-steps .now::before {
   background: linear-gradient(90deg, var(--accent) 50%, #2b303a 50%);
+}
+
+.waiting-cancel-toggle {
+  margin-top: 14px;
+}
+
+.waiting-cancel {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.waiting-cancel p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-h);
 }
 
 /* Dein Drink */

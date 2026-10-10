@@ -294,6 +294,69 @@ describe('orders', () => {
     expect(response.status).toBe(400)
   })
 
+  describe('cancelling by the guest', () => {
+    function cancel(orderId, name) {
+      return request(app).delete(`/api/orders/${orderId}`).send({ name })
+    }
+
+    test('removes the open order and allows a new one', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await cancel(body.orderId, 'Max')
+
+      expect(response.status).toBe(204)
+      expect((await request(app).get('/api/orders')).body).toEqual([])
+      expect((await placeOrder(app, 'Max')).status).toBe(201)
+    })
+
+    test('does not show up in the history', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await cancel(body.orderId, 'Max')
+
+      const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+
+      expect(history.body).toEqual([])
+    })
+
+    test('notifies live clients', async () => {
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      const { body } = await placeOrder(app, 'Max')
+
+      await cancel(body.orderId, 'Max')
+
+      expect(onChange).toHaveBeenCalledTimes(2)
+    })
+
+    test("rejects cancelling another guest's order", async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await cancel(body.orderId, 'Anna')
+
+      expect(response.status).toBe(404)
+      expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+    })
+
+    test('rejects cancelling an order that is already done', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await complete(body.orderId)
+
+      const response = await cancel(body.orderId, 'Max')
+
+      expect(response.status).toBe(404)
+      const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+      expect(history.body).toHaveLength(1)
+    })
+
+    test('rejects a request without a name', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await request(app).delete(`/api/orders/${body.orderId}`)
+
+      expect(response.status).toBe(400)
+    })
+  })
+
   test('completing an order removes it from the open list', async () => {
     const { body } = await placeOrder(app, 'Max')
 

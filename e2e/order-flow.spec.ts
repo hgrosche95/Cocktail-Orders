@@ -74,3 +74,35 @@ test('an ingredient marked as empty hides its cocktails for guests live', async 
   }
   await expect(cableCar).toBeVisible()
 })
+
+test('a guest can cancel their open order, the bar sees it disappear live', async ({ browser }) => {
+  const guestName = `E2E-${Date.now()}`
+  const guest = await (await browser.newContext()).newPage()
+  const bar = await (await browser.newContext()).newPage()
+
+  await bar.goto('/barkeeper')
+  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByRole('button', { name: 'Anmelden' }).click()
+
+  await guest.goto('/')
+  await guest.getByLabel('Wer kommt hoch?').fill(guestName)
+  await guest.getByRole('button', { name: /Hochfahren/ }).click()
+  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
+
+  const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
+  await expect(barOrder).toBeVisible()
+
+  await guest.getByRole('button', { name: 'Stornieren' }).click()
+  await guest.getByRole('button', { name: 'Ja, stornieren' }).click()
+
+  await expect(guest.locator('.waiting-panel')).toHaveCount(0)
+  await expect(barOrder).toHaveCount(0)
+  // Ein Storno ist keine fertige Bestellung.
+  await expect(guest.getByText('Deine Bestellung ist fertig!')).toHaveCount(0)
+  await expect(guest.locator('.rating-prompt')).toHaveCount(0)
+
+  // Danach kann der Gast neu bestellen.
+  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await expect(guest.getByRole('button', { name: 'Bestellung abschicken' })).toBeEnabled()
+})
