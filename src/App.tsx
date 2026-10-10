@@ -7,6 +7,7 @@ import BarkeeperPage from './pages/BarkeeperPage'
 import Skyline from './components/Skyline'
 import DrinkPage from './pages/DrinkPage'
 import cocktails from './data/cocktails'
+import { connectLiveUpdates } from './liveUpdates'
 import type { Cocktail } from './data/cocktails'
 import type { OrderItem, SubmittedOrder, Recommendation } from './types'
 
@@ -106,12 +107,7 @@ function App() {
         .catch(reportUnreachable)
     }
 
-    fetchOpenOrders()
-    fetchUnavailableIngredients()
-
-    const socket = new WebSocket(WS_URL)
-
-    socket.addEventListener('message', () => {
+    function refreshAll() {
       fetchOpenOrders()
       fetchUnavailableIngredients()
 
@@ -123,18 +119,12 @@ function App() {
         fetchRatings(currentUserRef.current)
         fetchRecommendations(currentUserRef.current)
       }
-    })
-
-    return () => {
-      // React-StrictMode startet den Effekt in der Entwicklung zweimal. Ein
-      // close() mitten im Verbindungsaufbau meldet der Browser als Warnung,
-      // deshalb dann erst nach dem Aufbau schliessen.
-      if (socket.readyState === WebSocket.CONNECTING) {
-        socket.addEventListener('open', () => socket.close())
-      } else {
-        socket.close()
-      }
     }
+
+    fetchOpenOrders()
+    fetchUnavailableIngredients()
+
+    return connectLiveUpdates(WS_URL, { onChange: refreshAll, onReconnect: refreshAll })
   }, [fetchHistory, fetchRatings, fetchRecommendations, reportUnreachable])
 
   useEffect(() => {
@@ -265,7 +255,10 @@ function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guestName: currentUser, cocktailId, rating }),
-    }).then(() => {
+    }).then((res) => {
+      // Abgelehnte Bewertung (z.B. Cocktail nie serviert) nicht als
+      // gespeichert anzeigen.
+      if (!res.ok) return
       setRatings((prev) => ({ ...prev, [cocktailId]: rating }))
       fetchRecommendations(currentUser)
     }, reportUnreachable)

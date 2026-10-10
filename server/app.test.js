@@ -26,6 +26,22 @@ function placeOrder(app, name, note = '') {
   return request(app).post('/api/orders').send({ name, items: [cableCar], note })
 }
 
+// Bewerten darf ein Gast nur, was ihm serviert wurde: legt dafuer direkt
+// eine abgeschlossene Bestellung an.
+async function serve(guestName, ...cocktailIds) {
+  for (const cocktailId of cocktailIds) {
+    const cocktail = cocktails.find((c) => c.id === cocktailId)
+    await prisma.order.create({
+      data: {
+        orderId: crypto.randomUUID(),
+        name: guestName,
+        items: [{ ...cocktail, orderId: crypto.randomUUID() }],
+        completedAt: new Date(),
+      },
+    })
+  }
+}
+
 beforeEach(async () => {
   await prisma.order.deleteMany()
   await prisma.unavailableIngredient.deleteMany()
@@ -176,6 +192,23 @@ describe('orders', () => {
     const listResponse = await request(app).get('/api/orders')
     expect(listResponse.body).toHaveLength(1)
     expect(listResponse.body[0]).toMatchObject({ name: 'Max', note: 'ohne Eis' })
+  })
+
+  test('lists open orders oldest first, regardless of insertion order', async () => {
+    const item = { ...cocktails[0], orderId: 'item' }
+    await prisma.order.create({
+      data: { orderId: 'late', name: 'Late', items: [item], createdAt: new Date('2026-01-01T20:10:00Z') },
+    })
+    await prisma.order.create({
+      data: { orderId: 'early', name: 'Early', items: [item], createdAt: new Date('2026-01-01T20:00:00Z') },
+    })
+    await prisma.order.create({
+      data: { orderId: 'middle', name: 'Middle', items: [item], createdAt: new Date('2026-01-01T20:05:00Z') },
+    })
+
+    const response = await request(app).get('/api/orders')
+
+    expect(response.body.map((order) => order.name)).toEqual(['Early', 'Middle', 'Late'])
   })
 
   test('ignores client-supplied cocktail details and uses the menu instead', async () => {
@@ -356,8 +389,9 @@ describe('unavailable ingredients', () => {
 describe('ratings', () => {
   let app
 
-  beforeEach(() => {
+  beforeEach(async () => {
     app = buildTestApp()
+    await serve('Max', 1)
   })
 
   test('starts with no ratings for a guest', async () => {
@@ -401,6 +435,37 @@ describe('ratings', () => {
 
     expect(response.status).toBe(400)
   })
+
+  test.each([
+    ['a missing guest name', { cocktailId: 1, rating: 5 }],
+    ['a too long guest name', { guestName: 'x'.repeat(51), cocktailId: 1, rating: 5 }],
+    ['a missing cocktail', { guestName: 'Max', rating: 5 }],
+    ['an unknown cocktail', { guestName: 'Max', cocktailId: 9999, rating: 5 }],
+    ['a cocktail id as string', { guestName: 'Max', cocktailId: '1', rating: 5 }],
+  ])('rejects %s', async (_label, body) => {
+    const response = await request(app).post('/api/ratings').send(body)
+
+    expect(response.status).toBe(400)
+  })
+
+  test('rejects rating a cocktail the guest was never served', async () => {
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Max', cocktailId: 2, rating: 5 })
+
+    expect(response.status).toBe(403)
+    expect((await request(app).get('/api/ratings').query({ guest: 'Max' })).body).toEqual([])
+  })
+
+  test('rejects rating a cocktail that is ordered but not served yet', async () => {
+    await placeOrder(app, 'Anna')
+
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
+
+    expect(response.status).toBe(403)
+  })
 })
 
 describe('GET /api/recommendations', () => {
@@ -418,6 +483,8 @@ describe('GET /api/recommendations', () => {
   })
 
   test('recommends a cocktail liked by a guest with the same taste', async () => {
+    await serve('Max', 1)
+    await serve('Anna', 1, 2)
     await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 5 })
     await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
     await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 2, rating: 4 })

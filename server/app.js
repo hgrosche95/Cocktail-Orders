@@ -62,7 +62,12 @@ export function createApp({
   )
 
   app.get('/api/orders', async (req, res) => {
-    const rows = await prisma.order.findMany({ where: { completedAt: null } })
+    // Die Reihenfolge ist die Warteschlange: der Gast leitet daraus seine
+    // Position ab, die Theke arbeitet sie von oben nach unten ab.
+    const rows = await prisma.order.findMany({
+      where: { completedAt: null },
+      orderBy: { createdAt: 'asc' },
+    })
     const orders = rows.map((row) => ({
       orderId: row.orderId,
       name: row.name,
@@ -188,10 +193,33 @@ export function createApp({
   })
 
   app.post('/api/ratings', async (req, res) => {
-    const { guestName, cocktailId, rating } = req.body
+    const { guestName, cocktailId, rating } = req.body ?? {}
 
+    if (typeof guestName !== 'string' || !guestName || guestName.length > MAX_NAME_LENGTH) {
+      res.status(400).json({ error: `guestName must be 1-${MAX_NAME_LENGTH} characters` })
+      return
+    }
+    if (!findCocktail(cocktailId)) {
+      res.status(400).json({ error: 'unknown cocktail' })
+      return
+    }
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       res.status(400).json({ error: 'rating must be an integer between 1 and 5' })
+      return
+    }
+
+    // Bewerten nur, was man auch serviert bekommen hat (so bietet es auch
+    // die Bestellhistorie an). Sonst koennte jeder beliebig viele Fantasie-
+    // Bewertungen abgeben und die Empfehlungen fuer alle verfaelschen.
+    const servedOrder = await prisma.order.findFirst({
+      where: {
+        name: guestName,
+        completedAt: { not: null },
+        items: { array_contains: [{ id: cocktailId }] },
+      },
+    })
+    if (!servedOrder) {
+      res.status(403).json({ error: 'guest has not been served this cocktail' })
       return
     }
 
