@@ -46,3 +46,31 @@ test('guest order reaches the bar live and the guest is notified when it is done
   await ratingPrompt.getByRole('button', { name: '5 von 5 Sternen' }).click()
   await expect(ratingPrompt).toHaveCount(0)
 })
+
+test('an ingredient marked as empty hides its cocktails for guests live', async ({ browser }) => {
+  const guest = await (await browser.newContext()).newPage()
+  const bar = await (await browser.newContext()).newPage()
+
+  await bar.goto('/barkeeper')
+  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByRole('button', { name: 'Anmelden' }).click()
+
+  await guest.goto('/')
+  await guest.getByLabel('Wer kommt hoch?').fill(`E2E-${Date.now()}`)
+  await guest.getByRole('button', { name: /Hochfahren/ }).click()
+  const cableCar = guest.getByRole('button', { name: 'Cable Car bestellen' })
+  await expect(cableCar).toBeVisible()
+
+  // Zimt steckt (Stand der Karte) nur im Cable Car.
+  const cinnamon = bar.getByRole('button', { name: /^Zimt/ })
+  await cinnamon.click()
+  await expect(cinnamon).toHaveAttribute('aria-pressed', 'true')
+  try {
+    await expect(cableCar).toHaveCount(0)
+  } finally {
+    // Bestand wiederherstellen, die Datenbank wird nicht geleert.
+    await cinnamon.click()
+    await expect(cinnamon).toHaveAttribute('aria-pressed', 'false')
+  }
+  await expect(cableCar).toBeVisible()
+})
