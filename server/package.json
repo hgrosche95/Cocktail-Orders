@@ -21,7 +21,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "openai": "^7.16.0",
-    "prisma": "^6.19.3",
+    "prisma": "^7.10.0",
     "ws": "^8.21.3"
   },
   "devDependencies": {
