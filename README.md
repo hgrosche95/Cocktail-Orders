@@ -28,7 +28,7 @@ notified as soon as their order is ready.
 ## Security model
 
 - **Barkeeper actions are protected on the server, not just in the UI.** The login returns a signed token (HMAC-SHA256, valid for 12 hours, key derived from `BARKEEPER_PASSWORD`), and every barkeeper route (completing orders, marking ingredients (un)available) rejects requests without a valid token. The password is compared in constant time, and failed logins are rate-limited per IP.
-- **Orders are validated on the server:** one open order per guest, name/note length limits, and order items are rebuilt from the menu, so clients can only say *which* cocktail they want.
+- **Orders are validated on the server:** one open order per guest, name/note length limits, and order items are rebuilt from the menu, so clients can only say *which* cocktail they want. Ratings are validated the same way, and a guest can only rate cocktails they have actually been served.
 - **The menu lives in `shared/cocktails.json`** and is read by both the frontend and the server. The LLM prompt for free-text wishes is built from the server's copy, never from client input. Wishes are limited to 300 characters and rate-limited per IP.
 - **Guests are identified by name only, on purpose.** This is a house-bar app: anyone who knows a guest's name can see that guest's order history and ratings. There are no accounts or passwords for guests.
 

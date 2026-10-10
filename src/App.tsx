@@ -255,7 +255,10 @@ function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ guestName: currentUser, cocktailId, rating }),
-    }).then(() => {
+    }).then((res) => {
+      // Abgelehnte Bewertung (z.B. Cocktail nie serviert) nicht als
+      // gespeichert anzeigen.
+      if (!res.ok) return
       setRatings((prev) => ({ ...prev, [cocktailId]: rating }))
       fetchRecommendations(currentUser)
     }, reportUnreachable)
