@@ -285,5 +285,27 @@ export function createApp({
     }
   })
 
+  // Unbekannte API-Pfade als JSON statt Expresss HTML-Seite.
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'not_found' })
+  })
+
+  // Fehler aus den Routen (Express 5 leitet auch abgelehnte Promises hierher
+  // weiter, z.B. wenn die Datenbank nicht erreichbar ist). Ohne diesen
+  // Handler antwortet Express mit einer HTML-Seite, die ausserhalb der
+  // Produktion den Stacktrace enthaelt.
+  // eslint-disable-next-line no-unused-vars -- Express erkennt Fehler-Handler an den 4 Parametern
+  app.use((error, req, res, next) => {
+    // Fehler mit Status < 500 kommen von Express selbst, z.B. kaputtes JSON
+    // im Body (400) oder zu grosser Body (413).
+    if (error.status >= 400 && error.status < 500) {
+      res.status(error.status).json({ error: error.type ?? 'bad_request' })
+      return
+    }
+
+    console.error(new Date().toISOString(), req.method, req.path, error)
+    res.status(500).json({ error: 'internal_error' })
+  })
+
   return app
 }

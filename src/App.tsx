@@ -8,24 +8,12 @@ import Skyline from './components/Skyline'
 import DrinkPage from './pages/DrinkPage'
 import cocktails from './data/cocktails'
 import { connectLiveUpdates } from './liveUpdates'
+import { WS_URL, getJson, sendJson } from './api'
+import { useGuestData } from './hooks/useGuestData'
+import { useBarkeeperAuth } from './hooks/useBarkeeperAuth'
+import { useWish } from './hooks/useWish'
 import type { Cocktail } from './data/cocktails'
-import type { OrderItem, SubmittedOrder, Recommendation } from './types'
-
-// VITE_API_URL wird beim Produktions-Build gesetzt (Container-App-URL, https).
-// Ohne den Wert (lokale Entwicklung/LAN-Nutzung) zeigt die App weiterhin auf
-// Port 3001 desselben Hosts, von dem sie geladen wurde.
-const API_BASE = import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:3001`
-const API_URL = `${API_BASE}/api`
-const WS_URL = API_BASE.replace(/^http/, 'ws')
-
-// Wirft bei Fehlerstatus, damit kein Fehler-Body (z.B. {"error": ...}) im
-// State landet, wo eine Liste erwartet wird.
-function getJson<T>(url: string): Promise<T> {
-  return fetch(url).then((res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
-  })
-}
+import type { OrderItem, SubmittedOrder } from './types'
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
@@ -39,18 +27,7 @@ function App() {
 
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
-  const [history, setHistory] = useState<SubmittedOrder[]>([])
-  const [ratings, setRatings] = useState<Record<number, number>>({})
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
-  const [textRecommendations, setTextRecommendations] = useState<Recommendation[]>([])
-  const [isTextRecommending, setIsTextRecommending] = useState(false)
-  const [wishNote, setWishNote] = useState('')
-  // Nur fuer die aktuelle Sitzung (kein localStorage) - bei Neuladen der
-  // Seite wird es einfach erneut versucht. Ein Groq-Tageslimit ist am
-  // naechsten Tag ohnehin wieder frei, ein dauerhaftes Abschalten braucht es
-  // dafuer nicht.
-  const [isWishFeatureDisabled, setIsWishFeatureDisabled] = useState(false)
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -63,37 +40,20 @@ function App() {
   const [isServerUnreachable, setIsServerUnreachable] = useState(false)
   const reportUnreachable = useCallback(() => setIsServerUnreachable(true), [])
 
+  const { history, ratings, recommendations, refreshGuestData, rateCocktail } = useGuestData(
+    currentUser,
+    reportUnreachable
+  )
+  const { isBarkeeperAuthenticated, login: handleBarkeeperLogin, barkeeperFetch } =
+    useBarkeeperAuth()
+
   useEffect(() => {
     currentUserRef.current = currentUser
   }, [currentUser])
 
-  const fetchHistory = useCallback((guest: string) => {
-    getJson<SubmittedOrder[]>(`${API_URL}/orders/history?guest=${encodeURIComponent(guest)}`)
-      .then(setHistory)
-      .catch(reportUnreachable)
-  }, [reportUnreachable])
-
-  const fetchRatings = useCallback((guest: string) => {
-    getJson<{ cocktailId: number; rating: number }[]>(
-      `${API_URL}/ratings?guest=${encodeURIComponent(guest)}`
-    )
-      .then((data) => {
-        const map: Record<number, number> = {}
-        for (const { cocktailId, rating } of data) map[cocktailId] = rating
-        setRatings(map)
-      })
-      .catch(reportUnreachable)
-  }, [reportUnreachable])
-
-  const fetchRecommendations = useCallback((guest: string) => {
-    getJson<Recommendation[]>(`${API_URL}/recommendations?guest=${encodeURIComponent(guest)}`)
-      .then(setRecommendations)
-      .catch(reportUnreachable)
-  }, [reportUnreachable])
-
   useEffect(() => {
     function fetchOpenOrders() {
-      getJson<SubmittedOrder[]>(`${API_URL}/orders`)
+      getJson<SubmittedOrder[]>('/orders')
         .then((data) => {
           setOpenOrders(data)
           setIsServerUnreachable(false)
@@ -102,7 +62,7 @@ function App() {
     }
 
     function fetchUnavailableIngredients() {
-      getJson<string[]>(`${API_URL}/unavailable-ingredients`)
+      getJson<string[]>('/unavailable-ingredients')
         .then(setUnavailableIngredients)
         .catch(reportUnreachable)
     }
@@ -115,9 +75,7 @@ function App() {
       // fertig markiert hat - die Historie muss das mitbekommen, damit der
       // Bewertungs-Prompt fuer den neu abgeholten Cocktail erscheint.
       if (currentUserRef.current) {
-        fetchHistory(currentUserRef.current)
-        fetchRatings(currentUserRef.current)
-        fetchRecommendations(currentUserRef.current)
+        refreshGuestData(currentUserRef.current)
       }
     }
 
@@ -125,14 +83,7 @@ function App() {
     fetchUnavailableIngredients()
 
     return connectLiveUpdates(WS_URL, { onChange: refreshAll, onReconnect: refreshAll })
-  }, [fetchHistory, fetchRatings, fetchRecommendations, reportUnreachable])
-
-  useEffect(() => {
-    if (!currentUser) return
-    fetchHistory(currentUser)
-    fetchRatings(currentUser)
-    fetchRecommendations(currentUser)
-  }, [currentUser, fetchHistory, fetchRatings, fetchRecommendations])
+  }, [refreshGuestData, reportUnreachable])
 
   useEffect(() => {
     localStorage.setItem('order', JSON.stringify(order))
@@ -153,6 +104,9 @@ function App() {
     setOrder([orderItem])
     orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  const { textRecommendations, isTextRecommending, wishNote, isWishFeatureDisabled, submitWish } =
+    useWish({ unavailableIngredients, onSingleMatch: handleAddToOrder })
 
   function handleOrderNow(cocktail: Cocktail, note: string) {
     handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
@@ -185,11 +139,7 @@ function App() {
   function handleSubmitOrder(note: string, items: OrderItem[] = order) {
     if (hasOpenOrder) return
 
-    fetch(`${API_URL}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: currentUser, items, note }),
-    })
+    sendJson('/orders', 'POST', { name: currentUser, items, note })
       // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B. aus
       // einem zweiten Tab), dann nichts in die lokale Liste uebernehmen.
       .then((res) => (res.ok ? res.json() : null))
@@ -199,44 +149,6 @@ function App() {
         setOrder([])
       })
       .catch(reportUnreachable)
-  }
-
-  // Das Token vom Server ist der eigentliche Nachweis: die Barkeeper-Routen
-  // pruefen es, ein reines "isBarkeeper"-Flag im Browser haette jeder setzen
-  // koennen.
-  const [barkeeperToken, setBarkeeperToken] = useState(
-    () => sessionStorage.getItem('barkeeperToken')
-  )
-  const isBarkeeperAuthenticated = barkeeperToken !== null
-
-  function barkeeperFetch(path: string, init: RequestInit = {}) {
-    const headers = new Headers(init.headers)
-    headers.set('Authorization', `Bearer ${barkeeperToken}`)
-    return fetch(`${API_URL}${path}`, { ...init, headers }).then((res) => {
-      // Token abgelaufen (nach 12 h) oder Passwort geaendert: neu anmelden.
-      if (res.status === 401) {
-        sessionStorage.removeItem('barkeeperToken')
-        setBarkeeperToken(null)
-      }
-      return res
-    })
-  }
-
-  function handleBarkeeperLogin(password: string): Promise<boolean> {
-    return fetch(`${API_URL}/barkeeper-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    })
-      .then((res) => res.json())
-      .then((data: { success: boolean; token?: string }) => {
-        if (data.success && data.token) {
-          sessionStorage.setItem('barkeeperToken', data.token)
-          setBarkeeperToken(data.token)
-          return true
-        }
-        return false
-      })
   }
 
   function handleMarkAsDone(orderId: string) {
@@ -250,68 +162,8 @@ function App() {
     }, reportUnreachable)
   }
 
-  function handleRateCocktail(cocktailId: number, rating: number) {
-    fetch(`${API_URL}/ratings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guestName: currentUser, cocktailId, rating }),
-    }).then((res) => {
-      // Abgelehnte Bewertung (z.B. Cocktail nie serviert) nicht als
-      // gespeichert anzeigen.
-      if (!res.ok) return
-      setRatings((prev) => ({ ...prev, [cocktailId]: rating }))
-      fetchRecommendations(currentUser)
-    }, reportUnreachable)
-  }
-
   function handleDismissRatingPrompt(orderId: string) {
     setDismissedHistoryOrderId(orderId)
-  }
-
-  function handleWishSubmit(text: string) {
-    setIsTextRecommending(true)
-    fetch(`${API_URL}/recommend-by-text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    })
-      .then((res) => {
-        // Groq-Tages-/Ratenlimit erreicht (siehe app.js) - Feature fuer den
-        // Rest dieser Sitzung deaktivieren statt bei jedem weiteren Versuch
-        // erneut ins Leere zu laufen.
-        if (res.status === 429) {
-          setIsWishFeatureDisabled(true)
-          return null
-        }
-        return res.json()
-      })
-      .then((result: { cocktailIds: number[]; note: string | null } | null) => {
-        if (!result) return
-
-        // Nicht verfuegbare Cocktails rausfiltern, bevor entschieden wird, ob
-        // es "genau ein Treffer" ist - sonst koennte ein ausverkaufter
-        // Cocktail automatisch in die Bestellung wandern.
-        const availableCocktails = result.cocktailIds
-          .map((id) => cocktails.find((c) => c.id === id))
-          .filter((cocktail): cocktail is Cocktail => cocktail !== undefined)
-          .filter(
-            (cocktail) =>
-              !cocktail.ingredients.some((ingredient) => unavailableIngredients.includes(ingredient))
-          )
-
-        if (availableCocktails.length === 1) {
-          handleAddToOrder(availableCocktails[0])
-          setWishNote(result.note ?? '')
-          setTextRecommendations([])
-          return
-        }
-
-        setTextRecommendations(
-          availableCocktails.map((cocktail) => ({ cocktailId: cocktail.id, predictedRating: 0 }))
-        )
-      })
-      .catch(() => setTextRecommendations([]))
-      .finally(() => setIsTextRecommending(false))
   }
 
   const latestCompletedOrder = history[0]
@@ -449,11 +301,11 @@ function App() {
                 ratings={ratings}
                 recommendations={recommendations}
                 pendingRatingItem={pendingRatingItem}
-                onRateCocktail={handleRateCocktail}
+                onRateCocktail={rateCocktail}
                 onDismissRatingPrompt={handleDismissRatingPrompt}
                 textRecommendations={textRecommendations}
                 isTextRecommending={isTextRecommending}
-                onWishSubmit={handleWishSubmit}
+                onWishSubmit={submitWish}
                 wishNote={wishNote}
                 isWishFeatureDisabled={isWishFeatureDisabled}
               />
