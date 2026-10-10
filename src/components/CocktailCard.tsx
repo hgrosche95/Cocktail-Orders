@@ -27,7 +27,8 @@ function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
         {cocktail.description && (
           <p className="cocktail-description">{cocktail.description}</p>
         )}
-        <p className="cocktail-movie">aus „{cocktail.movie}“</p>
+        {/* Eigene Drinks der Theke koennen ohne Film sein. */}
+        {cocktail.movie && <p className="cocktail-movie">aus „{cocktail.movie}“</p>}
       </Link>
       <button
         type="button"

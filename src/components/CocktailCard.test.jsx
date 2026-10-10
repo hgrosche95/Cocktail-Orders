@@ -27,6 +27,12 @@ describe('CocktailCard', () => {
     expect(screen.getByText(/Die Another Day/)).toBeInTheDocument()
   })
 
+  test('does not render a movie line for a drink without movie', () => {
+    renderWithRouter(<CocktailCard cocktail={{ ...cocktail, movie: '' }} onAddToOrder={() => {}} />)
+
+    expect(screen.queryByText(/aus „/)).not.toBeInTheDocument()
+  })
+
   test('does not render a description when there is none', () => {
     const cocktailWithoutDescription = { ...cocktail, description: undefined }
 

@@ -20,6 +20,7 @@ notified as soon as their order is ready.
 - Waiting panel after ordering: live queue position next to a Rheinturm light clock that shows the current time
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
+- Barkeeper can add their own drinks to the menu (`/barkeeper/karte`): name, category, movie, description, recipe with up to 12 ingredients; they show up for all guests live and can be removed again. The base menu stays in `shared/cocktails.json` (changed via commit); added drinks live in the database (`custom_cocktails`, IDs from 1001)
 - Barkeeper statistics (`/barkeeper/statistik`, last 24 h or all time): drinks served, guests, open orders, average rating, most ordered and best rated cocktails, and ingredient usage in cl from the recipes as a shopping aid; updates live
 - Free-text cocktail ordering ("something bitter, no rum, without ice") powered by an LLM (Groq): a clear single match (plus any serving note like "no ice") goes straight into the order form to review and confirm; an ambiguous wish shows a pick-list instead
 - Guests can rate cocktails they've had; a "recommended for you" section suggests cocktails liked by guests with similar taste (collaborative filtering)
@@ -31,7 +32,7 @@ notified as soon as their order is ready.
 
 - **Barkeeper actions are protected on the server, not just in the UI.** The login returns a signed token (HMAC-SHA256, valid for 12 hours, key derived from `BARKEEPER_PASSWORD`), and every barkeeper route (completing orders, marking ingredients (un)available) rejects requests without a valid token. The password is compared in constant time, and failed logins are rate-limited per IP.
 - **Orders are validated on the server:** one open order per guest, name/note length limits, and order items are rebuilt from the menu, so clients can only say *which* cocktail they want. Ratings are validated the same way, and a guest can only rate cocktails they have actually been served.
-- **The menu lives in `shared/cocktails.json`** and is read by both the frontend and the server. The LLM prompt for free-text wishes is built from the server's copy, never from client input. Wishes are limited to 300 characters and rate-limited per IP.
+- **The base menu lives in `shared/cocktails.json`** and is read by both the frontend and the server; drinks the barkeeper adds are stored in the database and validated on the server (known categories only, length limits, no line breaks). The LLM prompt for free-text wishes is built from the server's menu, never from guest input. Wishes are limited to 300 characters and rate-limited per IP.
 - **Guests are identified by name only, on purpose.** This is a house-bar app: anyone who knows a guest's name can see that guest's order history and ratings. There are no accounts or passwords for guests.
 
 ## Screenshots
@@ -59,7 +60,8 @@ notified as soon as their order is ready.
 ├── server/
 │   ├── app.js              Express app + routes (importable, used by tests)
 │   ├── barkeeperAuth.js     Barkeeper token + password check + route guard
-│   ├── menu.js              Loads shared/cocktails.json for the server
+│   ├── menu.js              Base menu (shared/cocktails.json) + drinks added by the barkeeper
+│   ├── cocktailInput.js     Validates a new drink from the barkeeper form
 │   ├── index.js             Entry point: starts the HTTP + WebSocket servers
 │   ├── prisma.js            Prisma Client singleton
 │   ├── prisma/schema.prisma Database schema + migrations
