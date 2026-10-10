@@ -45,13 +45,14 @@ notified as soon as their order is ready.
 | Frontend | React 19, TypeScript, Vite, React Router                        |
 | Backend  | Node.js, Express, Prisma + PostgreSQL, `ws`                     |
 | AI       | [Groq](https://groq.com) (free tier) via the OpenAI SDK, for the free-text wish feature |
-| Testing  | Vitest, Testing Library (frontend), Vitest + Supertest (backend) |
+| Testing  | Vitest, Testing Library (frontend), Vitest + Supertest (backend), Playwright (end-to-end) |
 | CI       | GitHub Actions (lint, test, build on every push)                |
 
 ## Project structure
 
 ```
 ├── src/                    React frontend (components, pages, data, tests)
+├── e2e/                    Playwright end-to-end tests (config: playwright.config.ts)
 ├── shared/cocktails.json   The menu, read by both frontend and server
 ├── server/
 │   ├── app.js              Express app + routes (importable, used by tests)
@@ -153,7 +154,15 @@ was loaded from.
 ```bash
 npm test          # frontend component tests (Vitest + Testing Library), from the project root
 cd server && npm test   # backend API tests (Vitest + Supertest)
+npm run test:e2e  # end-to-end test in a real browser (Playwright), from the project root
 ```
+
+The end-to-end test starts its own backend (port 3101) and frontend (port
+5174) and plays the whole flow across two browsers: a guest orders, the
+barkeeper sees the order live and marks it done, the guest gets the ready
+notification and rates the drink. It needs `DATABASE_URL` set to a migrated
+database (same as the backend tests) and a Playwright browser
+(`npx playwright install chromium` once).
 
 Backend tests run against the local Postgres from `docker-compose.yml` and
 clear the `orders`/`unavailable_ingredients` tables before each test, so
@@ -170,7 +179,8 @@ cd server && npm run lint   # backend
 
 Every push runs `.github/workflows/ci.yml`, which lints, tests, and builds
 both the frontend and backend in parallel jobs (the backend job runs against
-a Postgres service container).
+a Postgres service container), plus a third job for the Playwright
+end-to-end test.
 
 ## Deployment
 

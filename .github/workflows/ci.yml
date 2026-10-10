@@ -58,3 +58,57 @@ jobs:
 
       - run: npm test
         working-directory: server
+
+  # Ganzer Ablauf im Browser (Gast bestellt -> Theke erledigt -> Gast wird
+  # benachrichtigt) gegen echten Server und echte Datenbank. Faengt
+  # insbesondere die Live-Updates ueber den WebSocket ab, die Unit-Tests
+  # nicht abdecken.
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cocktail
+          POSTGRES_PASSWORD: cocktail
+          POSTGRES_DB: cocktail
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://cocktail:cocktail@localhost:5432/cocktail
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      - run: npm ci
+
+      - run: npm ci
+        working-directory: server
+
+      - run: npx prisma migrate deploy
+        working-directory: server
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
