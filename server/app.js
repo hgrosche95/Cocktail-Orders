@@ -62,7 +62,12 @@ export function createApp({
   )
 
   app.get('/api/orders', async (req, res) => {
-    const rows = await prisma.order.findMany({ where: { completedAt: null } })
+    // Die Reihenfolge ist die Warteschlange: der Gast leitet daraus seine
+    // Position ab, die Theke arbeitet sie von oben nach unten ab.
+    const rows = await prisma.order.findMany({
+      where: { completedAt: null },
+      orderBy: { createdAt: 'asc' },
+    })
     const orders = rows.map((row) => ({
       orderId: row.orderId,
       name: row.name,

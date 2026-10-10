@@ -178,6 +178,23 @@ describe('orders', () => {
     expect(listResponse.body[0]).toMatchObject({ name: 'Max', note: 'ohne Eis' })
   })
 
+  test('lists open orders oldest first, regardless of insertion order', async () => {
+    const item = { ...cocktails[0], orderId: 'item' }
+    await prisma.order.create({
+      data: { orderId: 'late', name: 'Late', items: [item], createdAt: new Date('2026-01-01T20:10:00Z') },
+    })
+    await prisma.order.create({
+      data: { orderId: 'early', name: 'Early', items: [item], createdAt: new Date('2026-01-01T20:00:00Z') },
+    })
+    await prisma.order.create({
+      data: { orderId: 'middle', name: 'Middle', items: [item], createdAt: new Date('2026-01-01T20:05:00Z') },
+    })
+
+    const response = await request(app).get('/api/orders')
+
+    expect(response.body.map((order) => order.name)).toEqual(['Early', 'Middle', 'Late'])
+  })
+
   test('ignores client-supplied cocktail details and uses the menu instead', async () => {
     const response = await request(app)
       .post('/api/orders')
