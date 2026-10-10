@@ -6,6 +6,8 @@ import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
 import Skyline from './components/Skyline'
 import DrinkPage from './pages/DrinkPage'
+import StatsPage from './pages/StatsPage'
+import type { Stats } from './pages/StatsPage'
 import cocktails from './data/cocktails'
 import { connectLiveUpdates } from './liveUpdates'
 import { WS_URL, getJson, sendJson } from './api'
@@ -28,6 +30,9 @@ function App() {
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
+  // Zaehlt jede Live-Aenderung mit; Ansichten, die selbst laden (Statistik),
+  // laden darauf neu.
+  const [liveVersion, setLiveVersion] = useState(0)
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -68,6 +73,7 @@ function App() {
     }
 
     function refreshAll() {
+      setLiveVersion((version) => version + 1)
       fetchOpenOrders()
       fetchUnavailableIngredients()
 
@@ -122,16 +128,29 @@ function App() {
   const ownOpenOrder = ownOrderIndex === -1 ? null : openOrders[ownOrderIndex]
   const hasOpenOrder = ownOpenOrder !== null
 
+  // "Fertig" heisst: die eigene offene Bestellung ist verschwunden UND steht
+  // jetzt in der Historie. Nur aufs Verschwinden zu schauen, wuerde auch
+  // nach einem Storno "fertig" melden. Beides kommt nach einer Aenderung in
+  // beliebiger Reihenfolge an, deshalb ein Effekt fuer beide.
   const [showReadyNotification, setShowReadyNotification] = useState(false)
-  const previousHasOpenOrder = useRef(false)
+  const ownOpenOrderId = ownOpenOrder?.orderId ?? null
+  const previousOwnOrderId = useRef<string | null>(null)
+  const awaitingReadyOrderId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (previousHasOpenOrder.current && !hasOpenOrder) {
+    const previousId = previousOwnOrderId.current
+    previousOwnOrderId.current = ownOpenOrderId
+    if (previousId && previousId !== ownOpenOrderId) {
+      awaitingReadyOrderId.current = previousId
+    }
+
+    const awaitedId = awaitingReadyOrderId.current
+    if (awaitedId && history.some((o) => o.orderId === awaitedId)) {
+      awaitingReadyOrderId.current = null
       setShowReadyNotification(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-    previousHasOpenOrder.current = hasOpenOrder
-  }, [hasOpenOrder])
+  }, [ownOpenOrderId, history])
 
   // items ist optional: die Karte schickt die vorgemerkte Bestellung ab, die
   // Detailansicht eines Drinks bestellt ihn direkt, ohne Umweg ueber `order`
@@ -151,6 +170,15 @@ function App() {
       .catch(reportUnreachable)
   }
 
+  function handleCancelOrder(orderId: string) {
+    sendJson(`/orders/${orderId}`, 'DELETE', { name: currentUser }).then((res) => {
+      // 404: inzwischen fertig oder schon storniert - dann kommt der echte
+      // Stand ohnehin ueber die Live-Updates.
+      if (!res.ok) return
+      setOpenOrders((prevOpenOrders) => prevOpenOrders.filter((o) => o.orderId !== orderId))
+    }, reportUnreachable)
+  }
+
   function handleMarkAsDone(orderId: string) {
     barkeeperFetch(`/orders/${orderId}/complete`, {
       method: 'PATCH',
@@ -161,6 +189,14 @@ function App() {
       )
     }, reportUnreachable)
   }
+
+  const loadStats = useCallback(
+    (since: string | null): Promise<Stats | null> => {
+      const query = since ? `?since=${encodeURIComponent(since)}` : ''
+      return barkeeperFetch(`/stats${query}`).then((res) => (res.ok ? res.json() : null))
+    },
+    [barkeeperFetch]
+  )
 
   function handleDismissRatingPrompt(orderId: string) {
     setDismissedHistoryOrderId(orderId)
@@ -201,7 +237,7 @@ function App() {
   const detailCocktail = drinkMatch
     ? cocktails.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
     : undefined
-  const barkeeperMatch = useMatch('/barkeeper')
+  const barkeeperMatch = useMatch('/barkeeper/*')
   const isArrival = currentUser === '' && !barkeeperMatch
   // Drink-Detail soll auf einen Handy-Screen passen: der Name liegt direkt
   // auf der Skyline, und die Tabs entfallen (zurueck geht es ueber "← Karte").
@@ -291,6 +327,7 @@ function App() {
                 onAddToOrder={handleAddToOrder}
                 onRemoveItem={handleRemoveItem}
                 onSubmitOrder={handleSubmitOrder}
+                onCancelOrder={handleCancelOrder}
                 hasOpenOrder={hasOpenOrder}
                 ownOpenOrder={ownOpenOrder}
                 queuePosition={ownOrderIndex + 1}
@@ -325,6 +362,16 @@ function App() {
                 queueLength={openOrders.length}
                 unavailableIngredients={unavailableIngredients}
               />
+            )
+          }
+        />
+        <Route
+          path="/barkeeper/statistik"
+          element={
+            isBarkeeperAuthenticated ? (
+              <StatsPage loadStats={loadStats} liveVersion={liveVersion} />
+            ) : (
+              <BarkeeperLogin onLogin={handleBarkeeperLogin} />
             )
           }
         />

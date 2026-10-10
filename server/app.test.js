@@ -294,6 +294,69 @@ describe('orders', () => {
     expect(response.status).toBe(400)
   })
 
+  describe('cancelling by the guest', () => {
+    function cancel(orderId, name) {
+      return request(app).delete(`/api/orders/${orderId}`).send({ name })
+    }
+
+    test('removes the open order and allows a new one', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await cancel(body.orderId, 'Max')
+
+      expect(response.status).toBe(204)
+      expect((await request(app).get('/api/orders')).body).toEqual([])
+      expect((await placeOrder(app, 'Max')).status).toBe(201)
+    })
+
+    test('does not show up in the history', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await cancel(body.orderId, 'Max')
+
+      const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+
+      expect(history.body).toEqual([])
+    })
+
+    test('notifies live clients', async () => {
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      const { body } = await placeOrder(app, 'Max')
+
+      await cancel(body.orderId, 'Max')
+
+      expect(onChange).toHaveBeenCalledTimes(2)
+    })
+
+    test("rejects cancelling another guest's order", async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await cancel(body.orderId, 'Anna')
+
+      expect(response.status).toBe(404)
+      expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+    })
+
+    test('rejects cancelling an order that is already done', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await complete(body.orderId)
+
+      const response = await cancel(body.orderId, 'Max')
+
+      expect(response.status).toBe(404)
+      const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+      expect(history.body).toHaveLength(1)
+    })
+
+    test('rejects a request without a name', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await request(app).delete(`/api/orders/${body.orderId}`)
+
+      expect(response.status).toBe(400)
+    })
+  })
+
   test('completing an order removes it from the open list', async () => {
     const { body } = await placeOrder(app, 'Max')
 
@@ -535,6 +598,75 @@ describe('GET /api/recommendations', () => {
     const response = await request(app).get('/api/recommendations').query({ guest: 'Max' })
 
     expect(response.body).toEqual([{ cocktailId: 2, predictedRating: 4 }])
+  })
+})
+
+describe('GET /api/stats', () => {
+  let app
+  let token
+
+  beforeEach(async () => {
+    app = buildTestApp()
+    token = await barkeeperToken(app)
+  })
+
+  function getStats(query = {}) {
+    return request(app).get('/api/stats').query(query).set('Authorization', `Bearer ${token}`)
+  }
+
+  test('is barkeeper-only', async () => {
+    const response = await request(app).get('/api/stats')
+
+    expect(response.status).toBe(401)
+  })
+
+  test('is empty without served orders', async () => {
+    const response = await getStats()
+
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      servedDrinks: 0,
+      guests: 0,
+      openOrders: 0,
+      averageRating: null,
+      topCocktails: [],
+      topRated: [],
+      ingredientUsage: [],
+    })
+  })
+
+  test('counts served drinks, open orders and ratings', async () => {
+    await serve('Max', 1, 1)
+    await serve('Anna', 1)
+    await placeOrder(app, 'Lea')
+    await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 4 })
+    await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
+
+    const { body } = await getStats()
+
+    expect(body).toMatchObject({ servedDrinks: 3, guests: 2, openOrders: 1, averageRating: 4.5 })
+    expect(body.topCocktails).toEqual([{ cocktailId: 1, name: cocktails[0].name, count: 3 }])
+    expect(body.topRated).toEqual([
+      { cocktailId: 1, name: cocktails[0].name, averageRating: 4.5, ratingCount: 2 },
+    ])
+  })
+
+  test('limits to orders completed since the given time', async () => {
+    const item = { ...cocktails[0], orderId: 'item' }
+    await prisma.order.create({
+      data: { orderId: 'old', name: 'Max', items: [item], completedAt: new Date('2026-01-01T20:00:00Z') },
+    })
+    await serve('Anna', 1)
+
+    const { body } = await getStats({ since: '2026-06-01T00:00:00Z' })
+
+    expect(body).toMatchObject({ servedDrinks: 1, guests: 1 })
+  })
+
+  test('rejects an invalid since', async () => {
+    const response = await getStats({ since: 'gestern' })
+
+    expect(response.status).toBe(400)
   })
 })
 

@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { recommendCocktails } from './recommendations.js'
+import { computeStats } from './stats.js'
 import { recommendByText as defaultRecommendByText } from './groq.js'
 import { createBarkeeperToken, passwordMatches, requireBarkeeper } from './barkeeperAuth.js'
 import { cocktails, findCocktail } from './menu.js'
@@ -148,6 +149,31 @@ export function createApp({
     res.status(201).json({ orderId, name: trimmedName, items: orderItems, note })
   })
 
+  // Storno durch den Gast selbst, solange die Bestellung offen ist. Gaeste
+  // haben keine Accounts (siehe README, Security model): der Name im Body
+  // muss zur Bestellung passen, mehr Nachweis gibt es nicht. Die Bestellung
+  // wird geloescht statt markiert - sie wurde nie serviert, gehoert also
+  // weder in die Historie noch in Bewertungen oder Statistik.
+  app.delete('/api/orders/:id', async (req, res) => {
+    const { name } = req.body ?? {}
+    if (typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'name is required' })
+      return
+    }
+
+    const { count } = await prisma.order.deleteMany({
+      where: { orderId: req.params.id, name: name.trim(), completedAt: null },
+    })
+    // Unbekannt, fremd oder schon fertig: fuer den Gast dasselbe.
+    if (count === 0) {
+      res.status(404).json({ error: 'no open order with this id for this guest' })
+      return
+    }
+
+    onChange()
+    res.status(204).end()
+  })
+
   // War frueher ein DELETE (Bestellung wurde komplett geloescht). Jetzt ein
   // Soft-Complete, damit die Bestellhistorie fuers Rating-/Empfehlungs-
   // Feature erhalten bleibt.
@@ -252,6 +278,34 @@ export function createApp({
     const ratings = await prisma.rating.findMany()
     const recommendations = recommendCocktails({ ratings, guestName: guest })
     res.json(recommendations)
+  })
+
+  // Statistik fuer die Theke. ?since=<ISO-Zeitpunkt> schraenkt auf einen
+  // Zeitraum ein (z.B. die aktuelle Party), ohne zaehlt alles.
+  app.get('/api/stats', barkeeperOnly, async (req, res) => {
+    const { since } = req.query
+    let sinceDate
+    if (since !== undefined) {
+      sinceDate = new Date(since)
+      if (typeof since !== 'string' || Number.isNaN(sinceDate.getTime())) {
+        res.status(400).json({ error: 'since must be an ISO date' })
+        return
+      }
+    }
+
+    const [servedOrders, ratings, openOrders] = await Promise.all([
+      prisma.order.findMany({
+        where: { completedAt: sinceDate ? { gte: sinceDate } : { not: null } },
+        select: { name: true, items: true },
+      }),
+      prisma.rating.findMany({
+        where: sinceDate ? { updatedAt: { gte: sinceDate } } : {},
+        select: { cocktailId: true, rating: true },
+      }),
+      prisma.order.count({ where: { completedAt: null } }),
+    ])
+
+    res.json({ ...computeStats({ servedOrders, ratings, findCocktail }), openOrders })
   })
 
   // Die Karte fuer den System-Prompt kommt aus shared/cocktails.json, nicht

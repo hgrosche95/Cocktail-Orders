@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
 import cocktails from '../data/cocktails'
 import { getCategoryTheme } from '../data/categories'
 import type { SubmittedOrder } from '../types'
@@ -38,9 +39,14 @@ function BarkeeperPage({
 
   return (
     <div>
-      <h2>
-        Theke <span className="category-count">{openOrders.length} offen</span>
-      </h2>
+      <div className="bar-header">
+        <h2>
+          Theke <span className="category-count">{openOrders.length} offen</span>
+        </h2>
+        <Link to="/barkeeper/statistik" className="btn btn-ghost btn-small">
+          Statistik
+        </Link>
+      </div>
       {openOrders.length === 0 ? (
         <p className="order-empty">Keine offenen Bestellungen.</p>
       ) : (

@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import WaitingPanel from './WaitingPanel'
 
 const order = {
@@ -38,5 +39,27 @@ describe('WaitingPanel', () => {
 
     expect(screen.getByText(/als Nächstes dran/)).toBeInTheDocument()
     expect(screen.getByText('Du bist dran')).toBeInTheDocument()
+  })
+
+  test('cancels only after the guest confirms', async () => {
+    const onCancel = vi.fn()
+    render(<WaitingPanel order={order} position={1} queueLength={1} onCancel={onCancel} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stornieren' }))
+    expect(onCancel).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ja, stornieren' }))
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
+
+  test('keeps the order when the guest changes their mind', async () => {
+    const onCancel = vi.fn()
+    render(<WaitingPanel order={order} position={1} queueLength={1} onCancel={onCancel} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stornieren' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Behalten' }))
+
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Stornieren' })).toBeInTheDocument()
   })
 })
