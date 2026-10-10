@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import cocktails from '../data/cocktails'
+import { useMenu } from '../data/menu'
+import type { Cocktail } from '../data/cocktails'
 import { getCategoryTheme } from '../data/categories'
 import type { SubmittedOrder } from '../types'
 
@@ -8,7 +9,7 @@ function categoryStyle(color: string): CSSProperties {
   return { '--cat-color': color } as CSSProperties
 }
 
-function getAllIngredients(): string[] {
+function getAllIngredients(cocktails: Cocktail[]): string[] {
   const ingredients = new Set<string>()
 
   for (const cocktail of cocktails) {
@@ -35,7 +36,8 @@ function BarkeeperPage({
   onMarkIngredientUnavailable,
   onMarkIngredientAvailable,
 }: BarkeeperPageProps) {
-  const allIngredients = getAllIngredients()
+  const cocktails = useMenu()
+  const allIngredients = getAllIngredients(cocktails)
 
   return (
     <div>
@@ -43,9 +45,14 @@ function BarkeeperPage({
         <h2>
           Theke <span className="category-count">{openOrders.length} offen</span>
         </h2>
-        <Link to="/barkeeper/statistik" className="btn btn-ghost btn-small">
-          Statistik
-        </Link>
+        <div className="bar-header-links">
+          <Link to="/barkeeper/karte" className="btn btn-ghost btn-small">
+            Karte
+          </Link>
+          <Link to="/barkeeper/statistik" className="btn btn-ghost btn-small">
+            Statistik
+          </Link>
+        </div>
       </div>
       {openOrders.length === 0 ? (
         <p className="order-empty">Keine offenen Bestellungen.</p>

@@ -1,4 +1,4 @@
-import cocktails from '../data/cocktails'
+import { useMenu } from '../data/menu'
 import type { Cocktail } from '../data/cocktails'
 import CocktailCard from './CocktailCard'
 import type { Recommendation } from '../types'
@@ -16,6 +16,7 @@ function Recommendations({
   onAddToOrder,
   title = 'Unser Tipp für dich',
 }: RecommendationsProps) {
+  const cocktails = useMenu()
   const recommendedCocktails = recommendations
     .map((rec) => cocktails.find((cocktail) => cocktail.id === rec.cocktailId))
     .filter((cocktail): cocktail is Cocktail => cocktail !== undefined)

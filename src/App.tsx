@@ -8,7 +8,10 @@ import Skyline from './components/Skyline'
 import DrinkPage from './pages/DrinkPage'
 import StatsPage from './pages/StatsPage'
 import type { Stats } from './pages/StatsPage'
-import cocktails from './data/cocktails'
+import baseCocktails from './data/cocktails'
+import { MenuContext } from './data/menu'
+import MenuEditorPage from './pages/MenuEditorPage'
+import type { NewCocktail } from './pages/MenuEditorPage'
 import { connectLiveUpdates } from './liveUpdates'
 import { WS_URL, getJson, sendJson } from './api'
 import { useGuestData } from './hooks/useGuestData'
@@ -29,6 +32,9 @@ function App() {
 
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
+  // Grundkarte sofort, die ganze Karte (mit Drinks der Theke) sobald der
+  // Server antwortet und nach jeder Live-Aenderung.
+  const [menu, setMenu] = useState<Cocktail[]>(baseCocktails)
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
   // Zaehlt jede Live-Aenderung mit; Ansichten, die selbst laden (Statistik),
   // laden darauf neu.
@@ -72,8 +78,13 @@ function App() {
         .catch(reportUnreachable)
     }
 
+    function fetchMenu() {
+      getJson<Cocktail[]>('/menu').then(setMenu).catch(reportUnreachable)
+    }
+
     function refreshAll() {
       setLiveVersion((version) => version + 1)
+      fetchMenu()
       fetchOpenOrders()
       fetchUnavailableIngredients()
 
@@ -85,6 +96,7 @@ function App() {
       }
     }
 
+    fetchMenu()
     fetchOpenOrders()
     fetchUnavailableIngredients()
 
@@ -112,7 +124,7 @@ function App() {
   }
 
   const { textRecommendations, isTextRecommending, wishNote, isWishFeatureDisabled, submitWish } =
-    useWish({ unavailableIngredients, onSingleMatch: handleAddToOrder })
+    useWish({ cocktails: menu, unavailableIngredients, onSingleMatch: handleAddToOrder })
 
   function handleOrderNow(cocktail: Cocktail, note: string) {
     handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
@@ -190,6 +202,35 @@ function App() {
     }, reportUnreachable)
   }
 
+  // Neuer Drink der Theke. Liefert die Fehlermeldung fuer das Formular oder
+  // null bei Erfolg; die Karte selbst kommt ueber die Live-Updates neu.
+  function handleAddCocktail(input: NewCocktail): Promise<string | null> {
+    return barkeeperFetch('/menu', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }).then(
+      async (res) => {
+        if (res.ok) {
+          const created: Cocktail = await res.json()
+          setMenu((prev) => (prev.some((c) => c.id === created.id) ? prev : [...prev, created]))
+          return null
+        }
+        if (res.status === 409) return 'Einen Drink mit diesem Namen gibt es schon.'
+        if (res.status === 401) return 'Bitte neu anmelden.'
+        return 'Bitte die Angaben prüfen.'
+      },
+      () => 'Server nicht erreichbar.'
+    )
+  }
+
+  function handleRemoveCocktail(id: number) {
+    barkeeperFetch(`/menu/${id}`, { method: 'DELETE' }).then((res) => {
+      if (!res.ok) return
+      setMenu((prev) => prev.filter((c) => c.id !== id))
+    }, reportUnreachable)
+  }
+
   const loadStats = useCallback(
     (since: string | null): Promise<Stats | null> => {
       const query = since ? `?since=${encodeURIComponent(since)}` : ''
@@ -235,7 +276,7 @@ function App() {
 
   const drinkMatch = useMatch('/drink/:id')
   const detailCocktail = drinkMatch
-    ? cocktails.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
+    ? menu.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
     : undefined
   const barkeeperMatch = useMatch('/barkeeper/*')
   const isArrival = currentUser === '' && !barkeeperMatch
@@ -248,151 +289,163 @@ function App() {
   if (isDrinkDetail) headerClassName += ' app-header-detail'
 
   return (
-    <div>
-      {/* Der Header ist die Buehne ueber der Skyline und wechselt mit der
-          Ansicht: Ankunft (noch nicht angemeldet), Drink-Detail oder die
-          normale Marke. */}
-      <header className={headerClassName}>
-        <div className="app-header-inner">
-          {isArrival ? (
-            <>
-              <span className="lift-display">▲ 5 · Dachterrasse</span>
-              <h1 className="arrival-title">
-                Über den Dächern <span>von Düsseldorf.</span>
-              </h1>
-              <p className="app-coords">51°14′ N · 6°46′ O · Etage 5</p>
-            </>
-          ) : detailCocktail ? (
-            <>
-              <Link to="/" className="back-link">
-                ← Karte
-              </Link>
-              <h1 className="drink-title">{detailCocktail.name}</h1>
-            </>
-          ) : (
-            <>
-              <h1>
-                Rooftop <span className="app-floor">5. OG</span>
-              </h1>
-              <p className="app-subtitle">Cocktails über Düsseldorf</p>
-            </>
-          )}
-        </div>
-        <Skyline className="app-skyline" />
-      </header>
-
-      {showReadyNotification && (
-        <div className="notification">
-          <p>
-            <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
-          </p>
-          <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
-            Schließen
-          </button>
-        </div>
-      )}
-
-      {isServerUnreachable && (
-        <div className="notification">
-          <p>Die Bar ist gerade nicht erreichbar. Versuch es gleich noch einmal.</p>
-          <button type="button" className="btn" onClick={() => setIsServerUnreachable(false)}>
-            Schließen
-          </button>
-        </div>
-      )}
-
-      {!isDrinkDetail && (
-        <nav className="tabs">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-            Kunde
-          </NavLink>
-          <NavLink
-            to="/barkeeper"
-            className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
-          >
-            Barkeeper
-          </NavLink>
-        </nav>
-      )}
-
-      <Routes>
-        <Route
-          path="/"
-          element={
-            currentUser === '' ? (
-              <LoginForm onLogin={setCurrentUser} />
+    <MenuContext.Provider value={menu}>
+      <div>
+        {/* Der Header ist die Buehne ueber der Skyline und wechselt mit der
+            Ansicht: Ankunft (noch nicht angemeldet), Drink-Detail oder die
+            normale Marke. */}
+        <header className={headerClassName}>
+          <div className="app-header-inner">
+            {isArrival ? (
+              <>
+                <span className="lift-display">▲ 5 · Dachterrasse</span>
+                <h1 className="arrival-title">
+                  Über den Dächern <span>von Düsseldorf.</span>
+                </h1>
+                <p className="app-coords">51°14′ N · 6°46′ O · Etage 5</p>
+              </>
+            ) : detailCocktail ? (
+              <>
+                <Link to="/" className="back-link">
+                  ← Karte
+                </Link>
+                <h1 className="drink-title">{detailCocktail.name}</h1>
+              </>
             ) : (
-              <CustomerPage
-                order={order}
-                onAddToOrder={handleAddToOrder}
-                onRemoveItem={handleRemoveItem}
-                onSubmitOrder={handleSubmitOrder}
-                onCancelOrder={handleCancelOrder}
-                hasOpenOrder={hasOpenOrder}
-                ownOpenOrder={ownOpenOrder}
-                queuePosition={ownOrderIndex + 1}
-                orderFormRef={orderFormRef}
-                queueLength={openOrders.length}
-                unavailableIngredients={unavailableIngredients}
-                history={history}
-                ratings={ratings}
-                recommendations={recommendations}
-                pendingRatingItem={pendingRatingItem}
-                onRateCocktail={rateCocktail}
-                onDismissRatingPrompt={handleDismissRatingPrompt}
-                textRecommendations={textRecommendations}
-                isTextRecommending={isTextRecommending}
-                onWishSubmit={submitWish}
-                wishNote={wishNote}
-                isWishFeatureDisabled={isWishFeatureDisabled}
-              />
-            )
-          }
-        />
-        <Route
-          path="/drink/:id"
-          element={
-            currentUser === '' ? (
-              <LoginForm onLogin={setCurrentUser} />
-            ) : (
-              <DrinkPage
-                cocktail={detailCocktail}
-                onOrder={handleOrderNow}
-                hasOpenOrder={hasOpenOrder}
-                queueLength={openOrders.length}
-                unavailableIngredients={unavailableIngredients}
-              />
-            )
-          }
-        />
-        <Route
-          path="/barkeeper/statistik"
-          element={
-            isBarkeeperAuthenticated ? (
-              <StatsPage loadStats={loadStats} liveVersion={liveVersion} />
-            ) : (
-              <BarkeeperLogin onLogin={handleBarkeeperLogin} />
-            )
-          }
-        />
-        <Route
-          path="/barkeeper"
-          element={
-            isBarkeeperAuthenticated ? (
-              <BarkeeperPage
-                openOrders={openOrders}
-                onMarkAsDone={handleMarkAsDone}
-                unavailableIngredients={unavailableIngredients}
-                onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
-                onMarkIngredientAvailable={handleMarkIngredientAvailable}
-              />
-            ) : (
-              <BarkeeperLogin onLogin={handleBarkeeperLogin} />
-            )
-          }
-        />
-      </Routes>
-    </div>
+              <>
+                <h1>
+                  Rooftop <span className="app-floor">5. OG</span>
+                </h1>
+                <p className="app-subtitle">Cocktails über Düsseldorf</p>
+              </>
+            )}
+          </div>
+          <Skyline className="app-skyline" />
+        </header>
+
+        {showReadyNotification && (
+          <div className="notification">
+            <p>
+              <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
+            </p>
+            <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
+              Schließen
+            </button>
+          </div>
+        )}
+
+        {isServerUnreachable && (
+          <div className="notification">
+            <p>Die Bar ist gerade nicht erreichbar. Versuch es gleich noch einmal.</p>
+            <button type="button" className="btn" onClick={() => setIsServerUnreachable(false)}>
+              Schließen
+            </button>
+          </div>
+        )}
+
+        {!isDrinkDetail && (
+          <nav className="tabs">
+            <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+              Kunde
+            </NavLink>
+            <NavLink
+              to="/barkeeper"
+              className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
+            >
+              Barkeeper
+            </NavLink>
+          </nav>
+        )}
+
+        <Routes>
+          <Route
+            path="/"
+            element={
+              currentUser === '' ? (
+                <LoginForm onLogin={setCurrentUser} />
+              ) : (
+                <CustomerPage
+                  order={order}
+                  onAddToOrder={handleAddToOrder}
+                  onRemoveItem={handleRemoveItem}
+                  onSubmitOrder={handleSubmitOrder}
+                  onCancelOrder={handleCancelOrder}
+                  hasOpenOrder={hasOpenOrder}
+                  ownOpenOrder={ownOpenOrder}
+                  queuePosition={ownOrderIndex + 1}
+                  orderFormRef={orderFormRef}
+                  queueLength={openOrders.length}
+                  unavailableIngredients={unavailableIngredients}
+                  history={history}
+                  ratings={ratings}
+                  recommendations={recommendations}
+                  pendingRatingItem={pendingRatingItem}
+                  onRateCocktail={rateCocktail}
+                  onDismissRatingPrompt={handleDismissRatingPrompt}
+                  textRecommendations={textRecommendations}
+                  isTextRecommending={isTextRecommending}
+                  onWishSubmit={submitWish}
+                  wishNote={wishNote}
+                  isWishFeatureDisabled={isWishFeatureDisabled}
+                />
+              )
+            }
+          />
+          <Route
+            path="/drink/:id"
+            element={
+              currentUser === '' ? (
+                <LoginForm onLogin={setCurrentUser} />
+              ) : (
+                <DrinkPage
+                  cocktail={detailCocktail}
+                  onOrder={handleOrderNow}
+                  hasOpenOrder={hasOpenOrder}
+                  queueLength={openOrders.length}
+                  unavailableIngredients={unavailableIngredients}
+                />
+              )
+            }
+          />
+          <Route
+            path="/barkeeper/karte"
+            element={
+              isBarkeeperAuthenticated ? (
+                <MenuEditorPage onAdd={handleAddCocktail} onRemove={handleRemoveCocktail} />
+              ) : (
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+              )
+            }
+          />
+          <Route
+            path="/barkeeper/statistik"
+            element={
+              isBarkeeperAuthenticated ? (
+                <StatsPage loadStats={loadStats} liveVersion={liveVersion} />
+              ) : (
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+              )
+            }
+          />
+          <Route
+            path="/barkeeper"
+            element={
+              isBarkeeperAuthenticated ? (
+                <BarkeeperPage
+                  openOrders={openOrders}
+                  onMarkAsDone={handleMarkAsDone}
+                  unavailableIngredients={unavailableIngredients}
+                  onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
+                  onMarkIngredientAvailable={handleMarkIngredientAvailable}
+                />
+              ) : (
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+              )
+            }
+          />
+        </Routes>
+      </div>
+    </MenuContext.Provider>
   )
 }
 
