@@ -20,6 +20,12 @@ model Order {
   // Rating/Empfehlungs-Feature erhalten bleibt.
   completedAt DateTime?
 
+  // Zusaetzlich gibt es den partiellen Unique-Index
+  // "orders_one_open_per_guest" (name WHERE completedAt IS NULL): hoechstens
+  // eine offene Bestellung pro Gast. Prisma kann partielle Indizes nicht im
+  // Schema abbilden, er steht nur in der Migration
+  // 20261010120000_one_open_order_per_guest.
+
   @@map("orders")
 }
 

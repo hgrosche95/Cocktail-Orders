@@ -229,6 +229,15 @@ describe('orders', () => {
     expect((await request(app).get('/api/orders')).body).toHaveLength(1)
   })
 
+  test('accepts only one of several simultaneous orders from the same guest', async () => {
+    // Doppelklick oder zwei Tabs: alle Requests kommen an, bevor einer
+    // davon die Bestellung angelegt hat.
+    const responses = await Promise.all(Array.from({ length: 5 }, () => placeOrder(app, 'Max')))
+
+    expect(responses.map((r) => r.status).sort()).toEqual([201, 409, 409, 409, 409])
+    expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+  })
+
   test('allows a new order once the previous one is completed', async () => {
     const first = await placeOrder(app, 'Max')
     await complete(first.body.orderId)
