@@ -216,26 +216,40 @@ function App() {
     }, reportUnreachable)
   }
 
-  // Neuer Drink der Theke. Liefert die Fehlermeldung fuer das Formular oder
-  // null bei Erfolg; die Karte selbst kommt ueber die Live-Updates neu.
-  function handleAddCocktail(input: NewCocktail): Promise<string | null> {
-    return barkeeperFetch('/menu', {
-      method: 'POST',
+  // Neuer oder geaenderter Drink der Theke. Liefert die Fehlermeldung fuer
+  // das Formular oder null bei Erfolg; die Karte kommt zusaetzlich ueber
+  // die Live-Updates neu.
+  function saveCocktail(path: string, method: string, input: NewCocktail): Promise<string | null> {
+    return barkeeperFetch(path, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     }).then(
       async (res) => {
         if (res.ok) {
-          const created: Cocktail = await res.json()
-          setMenu((prev) => (prev.some((c) => c.id === created.id) ? prev : [...prev, created]))
+          const saved: Cocktail = await res.json()
+          setMenu((prev) =>
+            prev.some((c) => c.id === saved.id)
+              ? prev.map((c) => (c.id === saved.id ? saved : c))
+              : [...prev, saved]
+          )
           return null
         }
         if (res.status === 409) return 'Einen Drink mit diesem Namen gibt es schon.'
         if (res.status === 401) return 'Bitte neu anmelden.'
+        if (res.status === 404) return 'Diesen Drink gibt es nicht mehr.'
         return 'Bitte die Angaben prüfen.'
       },
       () => 'Server nicht erreichbar.'
     )
+  }
+
+  function handleAddCocktail(input: NewCocktail) {
+    return saveCocktail('/menu', 'POST', input)
+  }
+
+  function handleUpdateCocktail(id: number, input: NewCocktail) {
+    return saveCocktail(`/menu/${id}`, 'PUT', input)
   }
 
   function handleRemoveCocktail(id: number) {
@@ -451,7 +465,11 @@ function App() {
             path="/barkeeper/karte"
             element={
               isBarkeeperAuthenticated ? (
-                <MenuEditorPage onAdd={handleAddCocktail} onRemove={handleRemoveCocktail} />
+                <MenuEditorPage
+                onAdd={handleAddCocktail}
+                onUpdate={handleUpdateCocktail}
+                onRemove={handleRemoveCocktail}
+              />
               ) : (
                 <BarkeeperLogin onLogin={handleBarkeeperLogin} />
               )

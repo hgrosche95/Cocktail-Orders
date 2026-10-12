@@ -237,3 +237,56 @@ test('the bar starts an order: guest sees it being mixed; new orders chime at th
   // Erledigen klingelt nicht.
   expect(await chimes()).toBe(1)
 })
+
+test('the bar edits its own drink: guests see the new version live, placed orders keep the old one', async ({
+  browser,
+}) => {
+  const stamp = Date.now()
+  const drinkName = `E2E Edit ${stamp}`
+  const newName = `E2E Edit Neu ${stamp}`
+  const guestName = `E2E-${stamp}`
+  const guest = await (await browser.newContext()).newPage()
+  const bar = await (await browser.newContext()).newPage()
+
+  await bar.goto('/barkeeper/karte')
+  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByRole('button', { name: 'Anmelden' }).click()
+  await bar.getByLabel('Name', { exact: true }).fill(drinkName)
+  await bar.getByLabel('Zutat 1', { exact: true }).fill('Rum')
+  await bar.getByLabel('Menge in cl für Zutat 1').fill('5')
+  await bar.getByRole('button', { name: 'Auf die Karte setzen' }).click()
+  await expect(bar.getByRole('status')).toContainText(drinkName)
+
+  try {
+    // Gast bestellt die alte Fassung.
+    await guest.goto('/')
+    await guest.getByLabel('Wer kommt hoch?').fill(guestName)
+    await guest.getByRole('button', { name: /Hochfahren/ }).click()
+    await guest.getByRole('button', { name: `${drinkName} bestellen` }).click()
+    await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
+    await expect(guest.locator('.waiting-panel')).toContainText(drinkName)
+
+    // Theke benennt um und aendert das Rezept.
+    await bar.getByRole('button', { name: `${drinkName} bearbeiten` }).click()
+    await expect(bar.getByLabel('Name', { exact: true })).toHaveValue(drinkName)
+    await bar.getByLabel('Name', { exact: true }).fill(newName)
+    await bar.getByLabel('Menge in cl für Zutat 1').fill('4,5')
+    await bar.getByRole('button', { name: 'Änderungen speichern' }).click()
+    await expect(bar.getByRole('status')).toContainText(`„${newName}“ ist gespeichert.`)
+
+    // Karte beim Gast: live die neue Fassung.
+    await expect(guest.getByRole('button', { name: `${newName} bestellen` })).toBeVisible()
+    await expect(guest.getByRole('button', { name: `${drinkName} bestellen` })).toHaveCount(0)
+
+    // Die schon abgegebene Bestellung bleibt bei der alten Fassung.
+    await bar.getByRole('link', { name: '← Theke' }).click()
+    const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
+    await expect(barOrder).toContainText(drinkName)
+    await expect(barOrder).toContainText('5 cl')
+    await barOrder.getByRole('button', { name: 'Erledigt' }).click()
+  } finally {
+    await bar.goto('/barkeeper/karte')
+    await bar.getByRole('button', { name: /^E2E Edit .* entfernen$/ }).first().click()
+    await bar.getByRole('button', { name: 'Ja, entfernen' }).click()
+  }
+})

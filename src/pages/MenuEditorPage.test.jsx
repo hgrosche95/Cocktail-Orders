@@ -16,15 +16,28 @@ const customDrink = {
   custom: true,
 }
 
-function renderPage({ onAdd = vi.fn().mockResolvedValue(null), onRemove = vi.fn(), menu = baseCocktails } = {}) {
-  render(
+function renderPage({
+  onAdd = vi.fn().mockResolvedValue(null),
+  onUpdate = vi.fn().mockResolvedValue(null),
+  onRemove = vi.fn(),
+  menu = baseCocktails,
+} = {}) {
+  const view = render(
     <MenuContext.Provider value={menu}>
       <MemoryRouter>
-        <MenuEditorPage onAdd={onAdd} onRemove={onRemove} />
+        <MenuEditorPage onAdd={onAdd} onUpdate={onUpdate} onRemove={onRemove} />
       </MemoryRouter>
     </MenuContext.Provider>
   )
-  return { onAdd, onRemove }
+  const rerenderWithMenu = (nextMenu) =>
+    view.rerender(
+      <MenuContext.Provider value={nextMenu}>
+        <MemoryRouter>
+          <MenuEditorPage onAdd={onAdd} onUpdate={onUpdate} onRemove={onRemove} />
+        </MemoryRouter>
+      </MenuContext.Provider>
+    )
+  return { onAdd, onUpdate, onRemove, rerenderWithMenu }
 }
 
 describe('MenuEditorPage', () => {
@@ -103,5 +116,67 @@ describe('MenuEditorPage', () => {
     renderPage()
 
     expect(screen.getByText(/Noch keine eigenen Drinks/)).toBeInTheDocument()
+  })
+
+  describe('editing', () => {
+    const withCustom = [...baseCocktails, { ...customDrink, movie: 'Hausrezept', description: 'Fruchtig.' }]
+
+    test('loads the drink into the form, including amounts with a comma', async () => {
+      renderPage({ menu: [...baseCocktails, { ...customDrink, recipe: { ...customDrink.recipe, ingredients: [{ name: 'Rum', amountCl: 4.5 }, { name: 'Ananassaft', note: 'frisch' }] } }] })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Rooftop Tiki bearbeiten' }))
+
+      expect(screen.getByRole('heading', { name: 'Drink bearbeiten' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Name')).toHaveValue('Rooftop Tiki')
+      expect(screen.getByLabelText('Kategorie')).toHaveValue('Süß & Fruchtig')
+      expect(screen.getByLabelText('Zutat 1')).toHaveValue('Rum')
+      expect(screen.getByLabelText('Menge in cl für Zutat 1')).toHaveValue('4,5')
+      expect(screen.getByLabelText('Hinweis für Zutat 2')).toHaveValue('frisch')
+      expect(screen.getByText('Wird bearbeitet')).toBeInTheDocument()
+    })
+
+    test('saves the changes for this drink and returns to "new drink"', async () => {
+      const { onAdd, onUpdate } = renderPage({ menu: withCustom })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Rooftop Tiki bearbeiten' }))
+      await userEvent.clear(screen.getByLabelText('Name'))
+      await userEvent.type(screen.getByLabelText('Name'), 'Tiki Deluxe')
+      await userEvent.click(screen.getByRole('button', { name: 'Änderungen speichern' }))
+
+      expect(onAdd).not.toHaveBeenCalled()
+      expect(onUpdate).toHaveBeenCalledWith(1001, {
+        name: 'Tiki Deluxe',
+        category: 'Süß & Fruchtig',
+        movie: 'Hausrezept',
+        description: 'Fruchtig.',
+        recipe: { ingredients: [{ name: 'Rum', amountCl: 5 }, { name: 'Ananassaft' }], ice: '', servedWithIceCubes: false },
+      })
+      expect(await screen.findByRole('status')).toHaveTextContent('„Tiki Deluxe“ ist gespeichert.')
+      expect(screen.getByRole('heading', { name: 'Neuer Drink' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Name')).toHaveValue('')
+    })
+
+    test('can be cancelled without saving', async () => {
+      const { onUpdate } = renderPage({ menu: withCustom })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Rooftop Tiki bearbeiten' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(screen.getByRole('heading', { name: 'Neuer Drink' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Name')).toHaveValue('')
+    })
+
+    test('does not re-create a drink that was removed meanwhile', async () => {
+      const { onAdd, onUpdate, rerenderWithMenu } = renderPage({ menu: withCustom })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Rooftop Tiki bearbeiten' }))
+      rerenderWithMenu(baseCocktails)
+      await userEvent.click(screen.getByRole('button', { name: 'Änderungen speichern' }))
+
+      expect(screen.getByText('Diesen Drink gibt es nicht mehr.')).toBeInTheDocument()
+      expect(onAdd).not.toHaveBeenCalled()
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
   })
 })

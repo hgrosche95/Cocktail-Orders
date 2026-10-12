@@ -70,6 +70,16 @@ export function createApp({
     res.json(await menu.all())
   })
 
+  // Name schon auf der Karte (Grundkarte oder eigene Drinks), ohne
+  // Gross/Klein; exceptId: der Drink, der gerade bearbeitet wird.
+  async function isNameTaken(name, exceptId) {
+    const key = name.toLocaleLowerCase('de')
+    const existing = await menu.all()
+    return existing.some(
+      (cocktail) => cocktail.id !== exceptId && cocktail.name.toLocaleLowerCase('de') === key
+    )
+  }
+
   app.post('/api/menu', barkeeperOnly, async (req, res) => {
     const parsed = parseCocktailInput(req.body, { categories })
     if (parsed.error) {
@@ -78,9 +88,7 @@ export function createApp({
     }
 
     const { name, data } = parsed.value
-    const key = name.toLocaleLowerCase('de')
-    const existing = await menu.all()
-    if (existing.some((cocktail) => cocktail.name.toLocaleLowerCase('de') === key)) {
+    if (await isNameTaken(name)) {
       res.status(409).json({ error: 'a cocktail with this name already exists' })
       return
     }
@@ -101,6 +109,45 @@ export function createApp({
     onChange()
     const findCocktail = await menu.finder()
     res.status(201).json(findCocktail(row.id))
+  })
+
+  // Eigenen Drink aendern (ganzer Eintrag, dieselben Regeln wie beim
+  // Anlegen). Offene und alte Bestellungen behalten ihre Kopie, also die
+  // Fassung von damals - auch an der Theke fuer schon bestellte Drinks.
+  app.put('/api/menu/:id', barkeeperOnly, async (req, res) => {
+    const id = Number(req.params.id)
+    const row = Number.isInteger(id) ? await prisma.customCocktail.findUnique({ where: { id } }) : null
+    if (!row) {
+      res.status(404).json({ error: 'no custom cocktail with this id' })
+      return
+    }
+
+    const parsed = parseCocktailInput(req.body, { categories })
+    if (parsed.error) {
+      res.status(400).json({ error: parsed.error })
+      return
+    }
+
+    const { name, data } = parsed.value
+    if (await isNameTaken(name, id)) {
+      res.status(409).json({ error: 'a cocktail with this name already exists' })
+      return
+    }
+
+    try {
+      await prisma.customCocktail.update({ where: { id }, data: { name, data } })
+    } catch (error) {
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'a cocktail with this name already exists' })
+        return
+      }
+      throw error
+    }
+
+    menu.invalidate()
+    onChange()
+    const findCocktail = await menu.finder()
+    res.json(findCocktail(id))
   })
 
   // Nur Drinks der Theke; die Grundkarte aendert sich nur per Commit.
