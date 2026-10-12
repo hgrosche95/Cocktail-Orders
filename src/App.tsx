@@ -17,6 +17,8 @@ import { WS_URL, getJson, sendJson } from './api'
 import { useGuestData } from './hooks/useGuestData'
 import { useBarkeeperAuth } from './hooks/useBarkeeperAuth'
 import { useWish } from './hooks/useWish'
+import { useNewOrderChime } from './hooks/useNewOrderChime'
+import { playChime, unlockChime } from './chime'
 import type { Cocktail } from './data/cocktails'
 import type { OrderItem, SubmittedOrder } from './types'
 
@@ -31,6 +33,7 @@ function App() {
   })
 
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
+  const [hasLoadedOrders, setHasLoadedOrders] = useState(false)
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
   // Grundkarte sofort, die ganze Karte (mit Drinks der Theke) sobald der
   // Server antwortet und nach jeder Live-Aenderung.
@@ -67,6 +70,7 @@ function App() {
       getJson<SubmittedOrder[]>('/orders')
         .then((data) => {
           setOpenOrders(data)
+          setHasLoadedOrders(true)
           setIsServerUnreachable(false)
         })
         .catch(reportUnreachable)
@@ -191,6 +195,16 @@ function App() {
     }, reportUnreachable)
   }
 
+  function handleStartOrder(orderId: string) {
+    barkeeperFetch(`/orders/${orderId}/start`, { method: 'PATCH' }).then((res) => {
+      if (!res.ok) return
+      const startedAt = new Date().toISOString()
+      setOpenOrders((prevOpenOrders) =>
+        prevOpenOrders.map((o) => (o.orderId === orderId && !o.startedAt ? { ...o, startedAt } : o))
+      )
+    }, reportUnreachable)
+  }
+
   function handleMarkAsDone(orderId: string) {
     barkeeperFetch(`/orders/${orderId}/complete`, {
       method: 'PATCH',
@@ -279,6 +293,32 @@ function App() {
     ? menu.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
     : undefined
   const barkeeperMatch = useMatch('/barkeeper/*')
+
+  // Gong an der Theke bei neuen Bestellungen. Die Einstellung gilt pro
+  // Geraet (localStorage), Standard ist an.
+  const [isSoundOn, setIsSoundOn] = useState(() => localStorage.getItem('barSound') !== 'off')
+  const isBarView = isBarkeeperAuthenticated && barkeeperMatch !== null
+  useNewOrderChime({
+    orders: hasLoadedOrders ? openOrders : null,
+    enabled: isBarView && isSoundOn,
+    play: playChime,
+  })
+
+  // Browser spielen Ton erst nach einer Beruehrung der Seite; die erste
+  // Beruehrung in der Theken-Ansicht schaltet ihn frei.
+  useEffect(() => {
+    if (!isBarView) return
+    document.addEventListener('pointerdown', unlockChime, { once: true })
+    return () => document.removeEventListener('pointerdown', unlockChime)
+  }, [isBarView])
+
+  function handleToggleSound() {
+    const next = !isSoundOn
+    setIsSoundOn(next)
+    localStorage.setItem('barSound', next ? 'on' : 'off')
+    // Beim Einschalten einmal anspielen: Rueckmeldung und Freischaltung.
+    if (next) playChime()
+  }
   const isArrival = currentUser === '' && !barkeeperMatch
   // Drink-Detail soll auf einen Handy-Screen passen: der Name liegt direkt
   // auf der Skyline, und die Tabs entfallen (zurueck geht es ueber "← Karte").
@@ -434,6 +474,9 @@ function App() {
                 <BarkeeperPage
                   openOrders={openOrders}
                   onMarkAsDone={handleMarkAsDone}
+                onStartOrder={handleStartOrder}
+                isSoundOn={isSoundOn}
+                onToggleSound={handleToggleSound}
                   unavailableIngredients={unavailableIngredients}
                   onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
                   onMarkIngredientAvailable={handleMarkIngredientAvailable}

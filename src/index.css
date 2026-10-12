@@ -1443,6 +1443,7 @@ p {
 
 .bar-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1567,6 +1568,7 @@ p {
 
 .bar-header-links {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1665,4 +1667,32 @@ p {
 .success-message {
   color: var(--success);
   font-size: 15px;
+}
+
+/* Bestellstatus an der Theke */
+
+.order-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.order-status {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+
+.barkeeper-order.started {
+  border-color: var(--accent);
+}
+
+/* Gast: "Wird gemixt" als volle Stufe statt halb gefuellt */
+.waiting-steps .now.mixing::before {
+  background: var(--accent);
 }
