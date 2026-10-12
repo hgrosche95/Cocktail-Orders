@@ -15,6 +15,7 @@ interface WaitingPanelProps {
 function WaitingPanel({ order, position, queueLength, onCancel }: WaitingPanelProps) {
   const drinkName = order.items[0]?.name ?? 'Dein Drink'
   const isNext = position === 1
+  const isStarted = Boolean(order.startedAt)
   const ahead = position - 1
   const panelRef = useRef<HTMLElement>(null)
   // Zweistufig, damit ein versehentlicher Tipp nicht gleich storniert.
@@ -38,17 +39,23 @@ function WaitingPanel({ order, position, queueLength, onCancel }: WaitingPanelPr
         </span>
         <span className="waiting-drink">{drinkName}</span>
         <p className="waiting-hint" aria-live="polite">
-          {isNext
-            ? 'Du bist als Nächstes dran – gleich wird gemixt.'
-            : `Noch ${ahead} ${ahead === 1 ? 'Bestellung' : 'Bestellungen'} vor dir.`}
+          {isStarted
+            ? 'Dein Drink wird gerade gemixt.'
+            : isNext
+              ? 'Du bist als Nächstes dran – gleich wird gemixt.'
+              : `Noch ${ahead} ${ahead === 1 ? 'Bestellung' : 'Bestellungen'} vor dir.`}
         </p>
         {order.note && <p className="waiting-note">„{order.note}“</p>}
         <ol className="waiting-steps">
           <li className="done">Bestellt</li>
-          <li className="now">{isNext ? 'Du bist dran' : 'Wartet'}</li>
+          <li className={isStarted ? 'now mixing' : 'now'}>
+            {isStarted ? 'Wird gemixt' : isNext ? 'Du bist dran' : 'Wartet'}
+          </li>
           <li>Fertig</li>
         </ol>
+        {/* Wird schon gemixt: Stornieren geht dann nicht mehr (Server: 409). */}
         {onCancel &&
+          !isStarted &&
           (isConfirmingCancel ? (
             <div className="waiting-cancel">
               <p>Bestellung wirklich stornieren?</p>

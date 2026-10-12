@@ -186,3 +186,54 @@ test('the bar adds a drink, guests see it live and can order it, then it is remo
 
   await expect(guestDrink).toHaveCount(0)
 })
+
+test('the bar starts an order: guest sees it being mixed; new orders chime at the bar', async ({
+  browser,
+}) => {
+  const guestName = `E2E-${Date.now()}`
+  const guest = await (await browser.newContext()).newPage()
+  const bar = await (await browser.newContext()).newPage()
+
+  // Der Gong selbst ist nicht hoerbar im Test; er loest aber immer auch die
+  // Vibration aus, und die laesst sich zaehlen.
+  await bar.addInitScript(() => {
+    const w = window as unknown as { chimes: number }
+    w.chimes = 0
+    Object.defineProperty(navigator, 'vibrate', {
+      value: () => {
+        w.chimes += 1
+        return true
+      },
+    })
+  })
+  const chimes = () => bar.evaluate(() => (window as unknown as { chimes: number }).chimes)
+
+  await bar.goto('/barkeeper')
+  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByRole('button', { name: 'Anmelden' }).click()
+  await expect(bar.getByRole('button', { name: /Ton an/ })).toBeVisible()
+  expect(await chimes()).toBe(0)
+
+  await guest.goto('/')
+  await guest.getByLabel('Wer kommt hoch?').fill(guestName)
+  await guest.getByRole('button', { name: /Hochfahren/ }).click()
+  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
+
+  const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
+  await expect(barOrder).toBeVisible()
+  await expect.poll(chimes).toBe(1)
+
+  await expect(guest.getByText('Wartet').or(guest.getByText('Du bist dran'))).toBeVisible()
+  await barOrder.getByRole('button', { name: 'Anfangen' }).click()
+  await expect(barOrder.getByText('In Arbeit')).toBeVisible()
+
+  // Gast sieht live, dass gemixt wird, und kann nicht mehr stornieren.
+  await expect(guest.getByText('Dein Drink wird gerade gemixt.')).toBeVisible()
+  await expect(guest.getByRole('button', { name: 'Stornieren' })).toHaveCount(0)
+
+  await barOrder.getByRole('button', { name: 'Erledigt' }).click()
+  await expect(guest.getByText('Deine Bestellung ist fertig!')).toBeVisible()
+  // Erledigen klingelt nicht.
+  expect(await chimes()).toBe(1)
+})

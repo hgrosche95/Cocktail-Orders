@@ -62,4 +62,19 @@ describe('WaitingPanel', () => {
     expect(onCancel).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Stornieren' })).toBeInTheDocument()
   })
+
+  test('shows that the drink is being mixed and no longer offers cancelling', () => {
+    render(
+      <WaitingPanel
+        order={{ ...order, startedAt: '2026-10-12T20:00:00Z' }}
+        position={1}
+        queueLength={1}
+        onCancel={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('Dein Drink wird gerade gemixt.')).toBeInTheDocument()
+    expect(screen.getByText('Wird gemixt')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stornieren' })).not.toBeInTheDocument()
+  })
 })

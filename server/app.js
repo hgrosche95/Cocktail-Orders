@@ -133,6 +133,7 @@ export function createApp({
       name: row.name,
       items: row.items,
       note: row.note,
+      startedAt: row.startedAt,
     }))
     res.json(orders)
   })
@@ -221,16 +222,39 @@ export function createApp({
       return
     }
 
-    const { count } = await prisma.order.deleteMany({
-      where: { orderId: req.params.id, name: name.trim(), completedAt: null },
-    })
-    // Unbekannt, fremd oder schon fertig: fuer den Gast dasselbe.
+    const where = { orderId: req.params.id, name: name.trim(), completedAt: null }
+    const { count } = await prisma.order.deleteMany({ where: { ...where, startedAt: null } })
     if (count === 0) {
+      // Wird schon gemixt: dann bleibt es dabei.
+      if (await prisma.order.findFirst({ where })) {
+        res.status(409).json({ error: 'order is already being prepared' })
+        return
+      }
+      // Unbekannt, fremd oder schon fertig: fuer den Gast dasselbe.
       res.status(404).json({ error: 'no open order with this id for this guest' })
       return
     }
 
     onChange()
+    res.status(204).end()
+  })
+
+  // Theke faengt an zu mixen: der Gast sieht "Wird gemixt". Mehrfaches
+  // Antippen aendert den Zeitpunkt nicht.
+  app.patch('/api/orders/:id/start', barkeeperOnly, async (req, res) => {
+    const { count } = await prisma.order.updateMany({
+      where: { orderId: req.params.id, completedAt: null, startedAt: null },
+      data: { startedAt: new Date() },
+    })
+    const isOpen =
+      count > 0 ||
+      (await prisma.order.findFirst({ where: { orderId: req.params.id, completedAt: null } }))
+    if (!isOpen) {
+      res.status(404).json({ error: 'no open order with this id' })
+      return
+    }
+
+    if (count > 0) onChange()
     res.status(204).end()
   })
 

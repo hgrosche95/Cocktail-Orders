@@ -15,6 +15,9 @@ model Order {
   // Reihenfolge der Warteschlange (Position beim Gast = Reihenfolge an der
   // Theke). Ohne ORDER BY garantiert Postgres keine Reihenfolge.
   createdAt   DateTime  @default(now())
+  // Theke hat angefangen zu mixen (NULL = wartet noch). Ab dann kann der
+  // Gast nicht mehr stornieren.
+  startedAt   DateTime?
   // NULL = noch offen. War frueher ein harter DELETE beim Fertig-Markieren
   // (siehe app.js) - jetzt ein Soft-Complete, damit Bestellhistorie fuers
   // Rating/Empfehlungs-Feature erhalten bleibt.
