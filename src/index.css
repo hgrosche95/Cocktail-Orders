@@ -1696,3 +1696,13 @@ p {
 .waiting-steps .now.mixing::before {
   background: var(--accent);
 }
+
+.custom-cocktail-editing {
+  font-size: 13px;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+
+.menu-form-cancel {
+  margin-top: 8px;
+}

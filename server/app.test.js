@@ -689,6 +689,11 @@ describe('menu', () => {
     return request(app).post('/api/menu').set('Authorization', `Bearer ${token}`).send(body)
   }
 
+  function updateCocktail(id, body, auth = true) {
+    const req = request(app).put(`/api/menu/${id}`).send(body)
+    return auth ? req.set('Authorization', `Bearer ${token}`) : req
+  }
+
   function removeCocktail(id) {
     return request(app).delete(`/api/menu/${id}`).set('Authorization', `Bearer ${token}`)
   }
@@ -788,6 +793,76 @@ describe('menu', () => {
     expect((await request(app).get('/api/menu')).body).toEqual(cocktails)
     const order = await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: body.id }] })
     expect(order.status).toBe(400)
+  })
+
+  describe('editing', () => {
+    test('changes a custom cocktail for everyone, keeping its id', async () => {
+      const { body: created } = await addCocktail(tiki)
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      token = await barkeeperToken(app)
+
+      const response = await updateCocktail(created.id, {
+        ...tiki,
+        name: 'Rooftop Tiki Deluxe',
+        recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: 6 }, { name: 'Maracujasaft', amountCl: 8 }] },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.body).toMatchObject({
+        id: created.id,
+        name: 'Rooftop Tiki Deluxe',
+        ingredients: ['Rum', 'Maracujasaft'],
+        custom: true,
+      })
+      expect(onChange).toHaveBeenCalledTimes(1)
+      const menu = (await request(app).get('/api/menu')).body
+      expect(menu.filter((c) => c.custom)).toEqual([response.body])
+    })
+
+    test('keeps the old version in orders placed before the change', async () => {
+      const { body: created } = await addCocktail(tiki)
+      await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: created.id }] })
+
+      await updateCocktail(created.id, { ...tiki, name: 'Umbenannt' })
+
+      const open = (await request(app).get('/api/orders')).body
+      expect(open[0].items[0].name).toBe('Rooftop Tiki')
+    })
+
+    test('may keep its own name, also with different case', async () => {
+      const { body: created } = await addCocktail(tiki)
+
+      const response = await updateCocktail(created.id, { ...tiki, name: 'ROOFTOP TIKI' })
+
+      expect(response.status).toBe(200)
+      expect(response.body.name).toBe('ROOFTOP TIKI')
+    })
+
+    test("rejects another drink's name", async () => {
+      const { body: first } = await addCocktail(tiki)
+      await addCocktail({ ...tiki, name: 'Zweiter' })
+
+      expect((await updateCocktail(first.id, { ...tiki, name: 'zweiter' })).status).toBe(409)
+      expect((await updateCocktail(first.id, { ...tiki, name: cocktails[0].name })).status).toBe(409)
+    })
+
+    test('validates like adding', async () => {
+      const { body: created } = await addCocktail(tiki)
+
+      const response = await updateCocktail(created.id, { ...tiki, category: 'Erfunden' })
+
+      expect(response.status).toBe(400)
+      expect((await request(app).get('/api/menu')).body.at(-1).category).toBe(tiki.category)
+    })
+
+    test('is barkeeper-only and only for custom cocktails', async () => {
+      const { body: created } = await addCocktail(tiki)
+
+      expect((await updateCocktail(created.id, tiki, false)).status).toBe(401)
+      expect((await updateCocktail(cocktails[0].id, tiki)).status).toBe(404)
+      expect((await updateCocktail(99999, tiki)).status).toBe(404)
+    })
   })
 
   test('does not remove base menu cocktails', async () => {

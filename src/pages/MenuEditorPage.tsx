@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useMenu } from '../data/menu'
-import type { RecipeIngredient } from '../data/cocktails'
+import type { Cocktail, RecipeIngredient } from '../data/cocktails'
 
 // Was das Formular an den Server schickt (POST /api/menu). Der Server prueft
 // alles noch einmal und baut daraus den Karteneintrag.
@@ -30,6 +30,11 @@ function emptyRow(): IngredientRow {
   return { name: '', amountCl: '', note: '' }
 }
 
+// Fuer das Formular: 4.5 -> "4,5"
+function formatAmount(amountCl: number | undefined): string {
+  return amountCl === undefined ? '' : String(amountCl).replace('.', ',')
+}
+
 // "4,5" und "4.5" sind beide gemeint; leer = keine Mengenangabe.
 function parseAmount(value: string): number | undefined {
   const normalized = value.trim().replace(',', '.')
@@ -39,10 +44,11 @@ function parseAmount(value: string): number | undefined {
 
 interface MenuEditorPageProps {
   onAdd: (input: NewCocktail) => Promise<string | null>
+  onUpdate: (id: number, input: NewCocktail) => Promise<string | null>
   onRemove: (id: number) => void
 }
 
-function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
+function MenuEditorPage({ onAdd, onUpdate, onRemove }: MenuEditorPageProps) {
   const menu = useMenu()
   const categories = [...new Set(menu.map((cocktail) => cocktail.category))]
   const knownIngredients = [
@@ -61,6 +67,45 @@ function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null)
+  // Drink, der gerade im Formular bearbeitet wird (null = neuer Drink)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  // Wird der Drink waehrend des Bearbeitens entfernt (z.B. auf einem
+  // anderen Geraet), legt "Speichern" ihn nicht neu an, sondern meldet es.
+  const editingCocktail = editingId === null ? null : menu.find((c) => c.id === editingId)
+
+  function resetForm() {
+    setEditingId(null)
+    setName('')
+    setCategory(categories[0] ?? '')
+    setMovie('')
+    setDescription('')
+    setRows([emptyRow()])
+    setIce('')
+    setServedWithIceCubes(false)
+  }
+
+  function startEditing(cocktail: Cocktail) {
+    setEditingId(cocktail.id)
+    setName(cocktail.name)
+    setCategory(cocktail.category)
+    setMovie(cocktail.movie ?? '')
+    setDescription(cocktail.description ?? '')
+    setRows(
+      cocktail.recipe.ingredients.map((ingredient) => ({
+        name: ingredient.name,
+        amountCl: formatAmount(ingredient.amountCl),
+        note: ingredient.note ?? '',
+      }))
+    )
+    setIce(cocktail.recipe.ice)
+    setServedWithIceCubes(cocktail.recipe.servedWithIceCubes)
+    setError(null)
+    setSaved(null)
+    setConfirmRemoveId(null)
+    // Optionaler Aufruf: jsdom (Tests) kennt scrollIntoView nicht.
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
 
   function updateRow(index: number, patch: Partial<IngredientRow>) {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
@@ -93,28 +138,34 @@ function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
       })
     }
 
+    if (editingId !== null && !editingCocktail) {
+      setError('Diesen Drink gibt es nicht mehr.')
+      return
+    }
+
     setError(null)
     setIsSaving(true)
     const cocktailName = name.trim()
-    onAdd({
+    const input: NewCocktail = {
       name: cocktailName,
       category,
       movie,
       description,
       recipe: { ingredients, ice, servedWithIceCubes },
-    })
+    }
+    const isEditing = editingId !== null
+    ;(isEditing ? onUpdate(editingId, input) : onAdd(input))
       .then((message) => {
         if (message) {
           setError(message)
           return
         }
-        setSaved(`„${cocktailName}“ steht jetzt auf der Karte.`)
-        setName('')
-        setMovie('')
-        setDescription('')
-        setRows([emptyRow()])
-        setIce('')
-        setServedWithIceCubes(false)
+        setSaved(
+          isEditing
+            ? `„${cocktailName}“ ist gespeichert.`
+            : `„${cocktailName}“ steht jetzt auf der Karte.`
+        )
+        resetForm()
       })
       .finally(() => setIsSaving(false))
   }
@@ -145,7 +196,9 @@ function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
                     {cocktail.category} · {cocktail.ingredients.join(', ')}
                   </p>
                 </div>
-                {confirmRemoveId === cocktail.id ? (
+                {editingId === cocktail.id ? (
+                  <span className="custom-cocktail-editing">Wird bearbeitet</span>
+                ) : confirmRemoveId === cocktail.id ? (
                   <div className="custom-cocktail-actions">
                     <button
                       type="button"
@@ -166,14 +219,24 @@ function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-small"
-                    aria-label={`${cocktail.name} entfernen`}
-                    onClick={() => setConfirmRemoveId(cocktail.id)}
-                  >
-                    Entfernen
-                  </button>
+                  <div className="custom-cocktail-actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      aria-label={`${cocktail.name} bearbeiten`}
+                      onClick={() => startEditing(cocktail)}
+                    >
+                      Bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-small"
+                      aria-label={`${cocktail.name} entfernen`}
+                      onClick={() => setConfirmRemoveId(cocktail.id)}
+                    >
+                      Entfernen
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
@@ -181,8 +244,13 @@ function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
         )}
       </section>
 
-      <form className="card menu-form" onSubmit={handleSubmit} noValidate>
-        <h3>Neuer Drink</h3>
+      <form className="card menu-form" onSubmit={handleSubmit} noValidate ref={formRef}>
+        <h3>{editingId === null ? 'Neuer Drink' : 'Drink bearbeiten'}</h3>
+        {editingId !== null && (
+          <p className="section-hint">
+            Schon bestellte Drinks behalten ihr altes Rezept, die Änderung gilt für neue Bestellungen.
+          </p>
+        )}
 
         <label className="field">
           Name
@@ -297,8 +365,20 @@ function MenuEditorPage({ onAdd, onRemove }: MenuEditorPageProps) {
         )}
 
         <button type="submit" className="btn btn-primary btn-block" disabled={isSaving}>
-          Auf die Karte setzen
+          {editingId === null ? 'Auf die Karte setzen' : 'Änderungen speichern'}
         </button>
+        {editingId !== null && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-block menu-form-cancel"
+            onClick={() => {
+              resetForm()
+              setError(null)
+            }}
+          >
+            Abbrechen
+          </button>
+        )}
       </form>
     </div>
   )
