@@ -295,6 +295,64 @@ describe('orders', () => {
     expect(response.status).toBe(400)
   })
 
+  describe('starting an order', () => {
+    function start(orderId, auth = true) {
+      const req = request(app).patch(`/api/orders/${orderId}/start`)
+      return auth ? req.set('Authorization', `Bearer ${token}`) : req
+    }
+
+    test('marks the order as being prepared for everyone', async () => {
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      token = await barkeeperToken(app)
+      const { body } = await placeOrder(app, 'Max')
+      const before = (await request(app).get('/api/orders')).body[0]
+      expect(before.startedAt).toBeNull()
+
+      const response = await start(body.orderId)
+
+      expect(response.status).toBe(204)
+      const after = (await request(app).get('/api/orders')).body[0]
+      expect(new Date(after.startedAt).getTime()).not.toBeNaN()
+      expect(onChange).toHaveBeenCalledTimes(2)
+    })
+
+    test('keeps the first start time when tapped again', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await start(body.orderId)
+      const first = (await request(app).get('/api/orders')).body[0].startedAt
+
+      const response = await start(body.orderId)
+
+      expect(response.status).toBe(204)
+      expect((await request(app).get('/api/orders')).body[0].startedAt).toBe(first)
+    })
+
+    test('is barkeeper-only', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      expect((await start(body.orderId, false)).status).toBe(401)
+    })
+
+    test('rejects unknown or completed orders', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await complete(body.orderId)
+
+      expect((await start(body.orderId)).status).toBe(404)
+      expect((await start('does-not-exist')).status).toBe(404)
+    })
+
+    test('blocks cancelling once the bar has started', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await start(body.orderId)
+
+      const response = await request(app).delete(`/api/orders/${body.orderId}`).send({ name: 'Max' })
+
+      expect(response.status).toBe(409)
+      expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+    })
+  })
+
   describe('cancelling by the guest', () => {
     function cancel(orderId, name) {
       return request(app).delete(`/api/orders/${orderId}`).send({ name })
