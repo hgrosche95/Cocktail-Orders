@@ -24,7 +24,7 @@ describe('StarRating', () => {
     const onRate = vi.fn()
     render(<StarRating value={0} onRate={onRate} />)
 
-    await user.click(screen.getByRole('button', { name: '4 von 5 Sternen' }))
+    await user.click(screen.getByRole('button', { name: '4 von 5 Kohlblättern' }))
 
     expect(onRate).toHaveBeenCalledWith(4)
   })

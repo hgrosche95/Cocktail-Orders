@@ -51,7 +51,7 @@ describe('OrderHistory', () => {
     await user.click(screen.getByText('Meine bisherigen Cocktails'))
 
     const cableCarItem = screen.getByText('Cable Car').closest('li')
-    await user.click(within(cableCarItem).getByRole('button', { name: '5 von 5 Sternen' }))
+    await user.click(within(cableCarItem).getByRole('button', { name: '5 von 5 Kohlblättern' }))
 
     expect(onRate).toHaveBeenCalledWith(1, 5)
   })

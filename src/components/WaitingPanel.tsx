@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import RheinturmClock from './RheinturmClock'
+import Kohltopf from '../party/Kohltopf'
 import type { SubmittedOrder } from '../types'
 
 interface WaitingPanelProps {
@@ -10,7 +10,7 @@ interface WaitingPanelProps {
 }
 
 // Ersetzt waehrend einer offenen Bestellung den schlichten Warteschlangen-
-// Zaehler: links der Rheinturm mit der echten Uhrzeit, rechts der eigene
+// Zaehler: links der dampfende Kohltopf mit der Uhrzeit, rechts der eigene
 // Platz in der Schlange.
 function WaitingPanel({ order, position, queueLength, onCancel }: WaitingPanelProps) {
   const drinkName = order.items[0]?.name ?? 'Dein Drink'
@@ -22,7 +22,7 @@ function WaitingPanel({ order, position, queueLength, onCancel }: WaitingPanelPr
   const [isConfirmingCancel, setIsConfirmingCancel] = useState(false)
 
   // Erscheint die Ansicht (gerade bestellt oder App mit offener Bestellung
-  // geoeffnet), rueckt sie den Rheinturm direkt ins Bild. Optionaler Aufruf,
+  // geoeffnet), rueckt sie den Kohltopf direkt ins Bild. Optionaler Aufruf,
   // weil jsdom in den Tests kein scrollIntoView kennt.
   useEffect(() => {
     panelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
@@ -30,7 +30,7 @@ function WaitingPanel({ order, position, queueLength, onCancel }: WaitingPanelPr
 
   return (
     <section className="card waiting-panel" ref={panelRef}>
-      <RheinturmClock />
+      <Kohltopf />
       <div className="waiting-info">
         <span className="waiting-label">Du bist</span>
         <span className="waiting-position">

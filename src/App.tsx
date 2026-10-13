@@ -4,7 +4,7 @@ import LoginForm from './components/LoginForm'
 import BarkeeperLogin from './components/BarkeeperLogin'
 import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
-import Skyline from './components/Skyline'
+import Kohlfeld from './party/Kohlfeld'
 import DrinkPage from './pages/DrinkPage'
 import StatsPage from './pages/StatsPage'
 import type { Stats } from './pages/StatsPage'
@@ -352,11 +352,11 @@ function App() {
           <div className="app-header-inner">
             {isArrival ? (
               <>
-                <span className="lift-display">▲ 5 · Dachterrasse</span>
+                <span className="lift-display">❄ Nach dem ersten Frost</span>
                 <h1 className="arrival-title">
-                  Über den Dächern <span>von Düsseldorf.</span>
+                  Kohl ist fertig. <span>Was trinkst du?</span>
                 </h1>
-                <p className="app-coords">51°14′ N · 6°46′ O · Etage 5</p>
+                <p className="app-coords">Draußen Frost · drinnen Kohl · Nachschlag erlaubt</p>
               </>
             ) : detailCocktail ? (
               <>
@@ -368,13 +368,13 @@ function App() {
             ) : (
               <>
                 <h1>
-                  Rooftop <span className="app-floor">5. OG</span>
+                  Kohlfahrt <span className="app-floor">nach dem 1. Frost</span>
                 </h1>
-                <p className="app-subtitle">Cocktails über Düsseldorf</p>
+                <p className="app-subtitle">Getränke zum Grünkohl</p>
               </>
             )}
           </div>
-          <Skyline className="app-skyline" />
+          <Kohlfeld className="app-skyline" />
         </header>
 
         {showReadyNotification && (

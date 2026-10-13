@@ -19,7 +19,7 @@ function LoginForm({ onLogin }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="login-form">
       <label className="field">
-        Wer kommt hoch?
+        Wer sitzt mit am Tisch?
         <input
           type="text"
           value={name}
@@ -29,8 +29,8 @@ function LoginForm({ onLogin }: LoginFormProps) {
         />
       </label>
       <button type="submit" className="btn btn-primary btn-block btn-split">
-        <span>Hochfahren</span>
-        <span aria-hidden="true">↑</span>
+        <span>Ran an den Kohl</span>
+        <span aria-hidden="true">→</span>
       </button>
     </form>
   )

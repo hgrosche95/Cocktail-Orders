@@ -9,8 +9,8 @@ describe('LoginForm', () => {
     const onLogin = vi.fn()
     render(<LoginForm onLogin={onLogin} />)
 
-    await user.type(screen.getByLabelText('Wer kommt hoch?'), 'Max')
-    await user.click(screen.getByRole('button', { name: 'Hochfahren' }))
+    await user.type(screen.getByLabelText('Wer sitzt mit am Tisch?'), 'Max')
+    await user.click(screen.getByRole('button', { name: 'Ran an den Kohl' }))
 
     expect(onLogin).toHaveBeenCalledWith('Max')
   })
@@ -20,7 +20,7 @@ describe('LoginForm', () => {
     const onLogin = vi.fn()
     render(<LoginForm onLogin={onLogin} />)
 
-    await user.click(screen.getByRole('button', { name: 'Hochfahren' }))
+    await user.click(screen.getByRole('button', { name: 'Ran an den Kohl' }))
 
     expect(onLogin).not.toHaveBeenCalled()
   })

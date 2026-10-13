@@ -1,0 +1,273 @@
+/* Grünkohl-Party "Erster Frost": Kohlgrün statt Nachthimmel, Senf statt
+   Signalorange, Raureif statt Glas. Wird nach index.css geladen und
+   ueberschreibt nur Farben, Schriften und die Motive - Layout bleibt.
+   Nach der Party reicht es, den Import in main.tsx zu entfernen und die
+   Komponenten-Tausche (Kohlfeld, Kohltopf, Kohlblatt) zurueckzunehmen. */
+:root {
+  --text: #c4cbbf;
+  --text-h: #eef3f0;
+  --bg: #142012;
+  --card-bg: rgba(232, 238, 240, 0.06);
+  --border: rgba(232, 238, 240, 0.12);
+  --accent: #d9a53a;
+  --accent-2: #f0c463;
+  --accent-text: #1e1606;
+  --success: #7fa35b;
+  --success-text: #142012;
+  --danger: #e07a5f;
+  --danger-bg: rgba(224, 122, 95, 0.14);
+
+  --sans: 'Literata', Georgia, 'Times New Roman', serif;
+  --heading: 'Alfa Slab One', Rockwell, Georgia, serif;
+  --kohl: #2f4a2b;
+  --kohl-hell: #7fa35b;
+  --raureif: #e8eef0;
+
+  font-size: 17px;
+
+  @media (max-width: 1024px) {
+    font-size: 15px;
+  }
+}
+
+body::before {
+  background:
+    radial-gradient(900px 420px at 50% -10%, rgba(232, 238, 240, 0.08), transparent 70%),
+    radial-gradient(600px 300px at 100% 110%, rgba(127, 163, 91, 0.16), transparent 70%);
+}
+
+/* Header: Frostnacht ueber dem Kohlfeld */
+
+.app-header {
+  background: linear-gradient(180deg, #0b140b 0%, #0e180e 55%, #16261a 100%);
+}
+
+.app-header::after {
+  background: #0a120a;
+}
+
+.app-subtitle,
+.app-coords {
+  color: var(--text);
+}
+
+.lift-display {
+  background: #0a120a;
+  border-color: rgba(232, 238, 240, 0.16);
+  text-shadow: none;
+}
+
+.drink-title {
+  text-shadow: 0 2px 18px rgba(10, 18, 10, 0.8);
+}
+
+.back-link {
+  background: rgba(10, 18, 10, 0.55);
+}
+
+.app-skyline {
+  color: #0a120a;
+}
+
+.kohlfeld-frost {
+  fill: var(--raureif);
+  opacity: 0.75;
+}
+
+.kohlfeld-sky {
+  fill: #0b140b;
+}
+
+.kohlfeld-hill {
+  fill: #1b2e1a;
+}
+
+.kohlfeld-rime {
+  fill: none;
+  stroke: var(--raureif);
+  stroke-opacity: 0.35;
+  stroke-width: 0.8;
+}
+
+.kohlfeld-plant {
+  fill: #3d5f37;
+  stroke: var(--raureif);
+  stroke-opacity: 0.45;
+  stroke-width: 0.8;
+}
+
+.kohlfeld-plant-back {
+  fill: var(--kohl);
+  stroke-opacity: 0.3;
+}
+
+.kohlfeld-wagon {
+  fill: #0f1a0f;
+  stroke: #0f1a0f;
+  stroke-width: 0;
+}
+
+.kohlfeld-wagon path {
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.kohlfeld-ground {
+  fill: currentColor;
+}
+
+/* Flaechen und Texte, die in index.css fest auf das Rooftop-Grau
+   gesetzt sind */
+
+.btn-primary:hover:not(:disabled) {
+  background: #e6b450;
+}
+
+.modal {
+  background: #1a2918;
+}
+
+.modal-overlay {
+  background: rgba(6, 12, 6, 0.75);
+}
+
+.ingredient-row input::placeholder,
+.cocktail-movie {
+  color: #8d9a88;
+}
+
+.drink-description,
+.cocktail-ingredient-list,
+.waiting-hint,
+.recipe-bar-legend,
+.filter-chip,
+.ingredient-chip {
+  color: #d7ddd3;
+}
+
+.waiting-note,
+.barkeeper-order .note {
+  color: var(--accent-2);
+}
+
+.ingredient-chip.unavailable {
+  color: #f0a38f;
+}
+
+.recipe-item {
+  background: rgba(10, 18, 10, 0.45);
+}
+
+.waiting-steps li::before {
+  background: #2a3a28;
+}
+
+.waiting-steps .now::before {
+  background: linear-gradient(90deg, var(--accent) 50%, #2a3a28 50%);
+}
+
+/* Wartepanel: dampfender Kohltopf statt Rheinturm */
+
+.waiting-panel {
+  grid-template-columns: 72px 1fr;
+}
+
+.kohltopf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.kohltopf svg {
+  width: 72px;
+  height: auto;
+}
+
+.kohltopf-steam {
+  fill: none;
+  stroke: var(--raureif);
+  stroke-opacity: 0.6;
+  stroke-width: 2;
+  stroke-linecap: round;
+  animation: kohl-dampf 2.4s ease-in-out infinite;
+}
+
+.kohltopf-pot {
+  fill: var(--kohl);
+}
+
+.kohltopf-lid {
+  fill: var(--kohl-hell);
+}
+
+.kohltopf-shine {
+  stroke: var(--raureif);
+  stroke-opacity: 0.25;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.kohltopf-time {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-2);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes kohl-dampf {
+  50% {
+    stroke-opacity: 0.2;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kohltopf-steam {
+    animation: none;
+  }
+}
+
+/* Bewertung: Kohlblaetter statt Sterne */
+
+.star-rating .star {
+  display: inline-flex;
+  color: var(--kohl-hell);
+}
+
+.star-rating .star svg {
+  width: 22px;
+  height: 26px;
+}
+
+.star-rating .star path {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  transition: fill 0.15s ease;
+}
+
+.star-rating .star-filled {
+  color: var(--kohl-hell);
+}
+
+.star-rating .star-filled path {
+  fill: currentColor;
+}
+
+/* Alfa Slab One laeuft breiter als Barlow Condensed: grosse Titel und
+   laengere Meldungen etwas kleiner setzen. */
+.arrival-title {
+  font-size: clamp(34px, 11vw, 54px);
+  line-height: 1.02;
+}
+
+.drink-title {
+  font-size: clamp(34px, 11vw, 58px);
+  line-height: 0.95;
+}
+
+.notification p {
+  font-size: 16px;
+  line-height: 1.25;
+}

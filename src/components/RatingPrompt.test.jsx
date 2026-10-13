@@ -15,7 +15,7 @@ describe('RatingPrompt', () => {
     const onRate = vi.fn()
     render(<RatingPrompt cocktailName="Cable Car" onRate={onRate} onDismiss={() => {}} />)
 
-    await user.click(screen.getByRole('button', { name: '5 von 5 Sternen' }))
+    await user.click(screen.getByRole('button', { name: '5 von 5 Kohlblättern' }))
 
     expect(onRate).toHaveBeenCalledWith(5)
   })
