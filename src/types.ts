@@ -9,6 +9,8 @@ export interface SubmittedOrder {
   name: string
   items: OrderItem[]
   note: string
+  // Theke mixt gerade (null = wartet noch)
+  startedAt?: string | null
   completedAt?: string
 }
 

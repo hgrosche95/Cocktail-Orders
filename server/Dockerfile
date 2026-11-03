@@ -1,4 +1,6 @@
-FROM node:24-slim AS build
+# Node-Major muss zu .nvmrc passen (CI und Deploy-Workflow lesen sie
+# daraus). Dependabot aktualisiert nur diese Zeilen, .nvmrc dann mitziehen.
+FROM node:26-slim AS build
 WORKDIR /app
 
 # Ohne OpenSSL erkennt Prismas Postinstall-Skript (laeuft hier via 'npm ci')
@@ -16,11 +18,11 @@ FROM build AS prune
 WORKDIR /app
 RUN npm prune --omit=dev
 
-FROM node:24-slim
+FROM node:26-slim
 WORKDIR /app
 
-# Prisma's Query-Engine-Binary braucht libssl zur Laufzeit; node:24-slim
-# (Debian) hat das nicht vorinstalliert.
+# Prisma's Query-Engine-Binary braucht libssl zur Laufzeit;
+# node:*-slim (Debian) hat das nicht vorinstalliert.
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # 'prisma migrate deploy' laeuft beim Containerstart, bevor der Server

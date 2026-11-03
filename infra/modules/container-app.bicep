@@ -35,8 +35,16 @@ param corsOrigin string
 @description('Minimale Anzahl Replicas. 0 = Scale-to-Zero, spart Kosten in Ruhephasen.')
 param minReplicas int = 0
 
-@description('Maximale Anzahl Replicas.')
-param maxReplicas int = 2
+// Hoechstens 1: die WebSocket-Verbindungen (server/index.js) und die
+// Rate-Limits (express-rate-limit) liegen im Speicher der jeweiligen
+// Instanz. Mit einer zweiten Replica bekaeme nur ein Teil der Gaeste bzw.
+// der Barkeeper die Live-Updates mit. Fuer eine Hausbar reicht eine
+// Instanz; fuer mehr braeuchte es einen gemeinsamen Kanal (z. B. Postgres
+// LISTEN/NOTIFY).
+@description('Maximale Anzahl Replicas. Höchstens 1, siehe Kommentar.')
+@minValue(1)
+@maxValue(1)
+param maxReplicas int = 1
 
 @description('Wie viele Tage Log Analytics die Log-Daten aufbewahrt. Kleinerer Wert = weniger Speicherkosten.')
 param logRetentionInDays int = 30

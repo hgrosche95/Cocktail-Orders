@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react'
-import cocktails from '../data/cocktails'
+import { Link } from 'react-router-dom'
+import { useMenu } from '../data/menu'
+import type { Cocktail } from '../data/cocktails'
 import { getCategoryTheme } from '../data/categories'
 import type { SubmittedOrder } from '../types'
 
@@ -7,7 +9,7 @@ function categoryStyle(color: string): CSSProperties {
   return { '--cat-color': color } as CSSProperties
 }
 
-function getAllIngredients(): string[] {
+function getAllIngredients(cocktails: Cocktail[]): string[] {
   const ingredients = new Set<string>()
 
   for (const cocktail of cocktails) {
@@ -22,6 +24,9 @@ function getAllIngredients(): string[] {
 interface BarkeeperPageProps {
   openOrders: SubmittedOrder[]
   onMarkAsDone: (orderId: string) => void
+  onStartOrder: (orderId: string) => void
+  isSoundOn: boolean
+  onToggleSound: () => void
   unavailableIngredients: string[]
   onMarkIngredientUnavailable: (ingredient: string) => void
   onMarkIngredientAvailable: (ingredient: string) => void
@@ -30,24 +35,53 @@ interface BarkeeperPageProps {
 function BarkeeperPage({
   openOrders,
   onMarkAsDone,
+  onStartOrder,
+  isSoundOn,
+  onToggleSound,
   unavailableIngredients,
   onMarkIngredientUnavailable,
   onMarkIngredientAvailable,
 }: BarkeeperPageProps) {
-  const allIngredients = getAllIngredients()
+  const cocktails = useMenu()
+  const allIngredients = getAllIngredients(cocktails)
 
   return (
     <div>
-      <h2>
-        Theke <span className="category-count">{openOrders.length} offen</span>
-      </h2>
+      <div className="bar-header">
+        <h2>
+          Theke <span className="category-count">{openOrders.length} offen</span>
+        </h2>
+        <div className="bar-header-links">
+          <button
+            type="button"
+            className="btn btn-ghost btn-small"
+            aria-pressed={isSoundOn}
+            title={isSoundOn ? 'Ton bei neuen Bestellungen ausschalten' : 'Ton bei neuen Bestellungen einschalten'}
+            onClick={onToggleSound}
+          >
+            {isSoundOn ? '🔔 Ton an' : '🔕 Ton aus'}
+          </button>
+          <Link to="/barkeeper/karte" className="btn btn-ghost btn-small">
+            Karte
+          </Link>
+          <Link to="/barkeeper/statistik" className="btn btn-ghost btn-small">
+            Statistik
+          </Link>
+        </div>
+      </div>
       {openOrders.length === 0 ? (
         <p className="order-empty">Keine offenen Bestellungen.</p>
       ) : (
         <ul className="order-list">
           {openOrders.map((submittedOrder) => (
-            <li key={submittedOrder.orderId} className="card barkeeper-order">
-              <h3>{submittedOrder.name}</h3>
+            <li
+              key={submittedOrder.orderId}
+              className={submittedOrder.startedAt ? 'card barkeeper-order started' : 'card barkeeper-order'}
+            >
+              <h3>
+                {submittedOrder.name}
+                {submittedOrder.startedAt && <span className="order-status">In Arbeit</span>}
+              </h3>
               <ul className="recipe-list">
                 {submittedOrder.items.map((item) => {
                   const theme = getCategoryTheme(item.category)
@@ -78,13 +112,24 @@ function BarkeeperPage({
                 })}
               </ul>
               {submittedOrder.note && <p className="note">„{submittedOrder.note}“</p>}
-              <button
-                type="button"
-                className="btn btn-light btn-block"
-                onClick={() => onMarkAsDone(submittedOrder.orderId)}
-              >
-                Erledigt
-              </button>
+              <div className="order-actions">
+                {!submittedOrder.startedAt && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => onStartOrder(submittedOrder.orderId)}
+                  >
+                    Anfangen
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-light"
+                  onClick={() => onMarkAsDone(submittedOrder.orderId)}
+                >
+                  Erledigt
+                </button>
+              </div>
             </li>
           ))}
         </ul>

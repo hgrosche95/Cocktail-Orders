@@ -16,6 +16,7 @@ interface CustomerPageProps {
   onAddToOrder: (cocktail: Cocktail) => void
   onRemoveItem: (orderId: string) => void
   onSubmitOrder: (note: string) => void
+  onCancelOrder: (orderId: string) => void
   hasOpenOrder: boolean
   ownOpenOrder: SubmittedOrder | null
   queuePosition: number
@@ -40,6 +41,7 @@ function CustomerPage({
   onAddToOrder,
   onRemoveItem,
   onSubmitOrder,
+  onCancelOrder,
   hasOpenOrder,
   ownOpenOrder,
   queuePosition,
@@ -69,7 +71,12 @@ function CustomerPage({
       </div>
 
       {ownOpenOrder && (
-        <WaitingPanel order={ownOpenOrder} position={queuePosition} queueLength={queueLength} />
+        <WaitingPanel
+          order={ownOpenOrder}
+          position={queuePosition}
+          queueLength={queueLength}
+          onCancel={() => onCancelOrder(ownOpenOrder.orderId)}
+        />
       )}
 
       {pendingRatingItem && (

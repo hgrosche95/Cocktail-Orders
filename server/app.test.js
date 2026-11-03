@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterAll, vi } from 'vitest'
 import request from 'supertest'
 import { prisma } from './prisma.js'
 import { createApp } from './app.js'
-import { cocktails } from './menu.js'
+import { cocktails, FIRST_CUSTOM_ID } from './menu.js'
 
 function buildTestApp(overrides = {}) {
   return createApp({
@@ -26,10 +26,27 @@ function placeOrder(app, name, note = '') {
   return request(app).post('/api/orders').send({ name, items: [cableCar], note })
 }
 
+// Bewerten darf ein Gast nur, was ihm serviert wurde: legt dafuer direkt
+// eine abgeschlossene Bestellung an.
+async function serve(guestName, ...cocktailIds) {
+  for (const cocktailId of cocktailIds) {
+    const cocktail = cocktails.find((c) => c.id === cocktailId)
+    await prisma.order.create({
+      data: {
+        orderId: crypto.randomUUID(),
+        name: guestName,
+        items: [{ ...cocktail, orderId: crypto.randomUUID() }],
+        completedAt: new Date(),
+      },
+    })
+  }
+}
+
 beforeEach(async () => {
   await prisma.order.deleteMany()
   await prisma.unavailableIngredient.deleteMany()
   await prisma.rating.deleteMany()
+  await prisma.customCocktail.deleteMany()
 })
 
 afterAll(async () => {
@@ -44,6 +61,40 @@ describe('GET /api/ping', () => {
 
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ status: 'ok' })
+  })
+})
+
+describe('error handling', () => {
+  test('answers unknown API paths with JSON 404', async () => {
+    const response = await request(buildTestApp()).get('/api/does-not-exist')
+
+    expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'not_found' })
+  })
+
+  test('answers malformed JSON with JSON 400', async () => {
+    const response = await request(buildTestApp())
+      .post('/api/orders')
+      .set('Content-Type', 'application/json')
+      .send('{"name": ')
+
+    expect(response.status).toBe(400)
+    expect(response.body).toEqual({ error: 'entity.parse.failed' })
+  })
+
+  test('answers database errors with JSON 500 without details', async () => {
+    const failingPrisma = {
+      order: { findMany: () => Promise.reject(new Error('connection refused: secret-host')) },
+    }
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const response = await request(buildTestApp({ prisma: failingPrisma })).get('/api/orders')
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'internal_error' })
+    expect(response.text).not.toContain('secret-host')
+    expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 })
 
@@ -178,6 +229,23 @@ describe('orders', () => {
     expect(listResponse.body[0]).toMatchObject({ name: 'Max', note: 'ohne Eis' })
   })
 
+  test('lists open orders oldest first, regardless of insertion order', async () => {
+    const item = { ...cocktails[0], orderId: 'item' }
+    await prisma.order.create({
+      data: { orderId: 'late', name: 'Late', items: [item], createdAt: new Date('2026-01-01T20:10:00Z') },
+    })
+    await prisma.order.create({
+      data: { orderId: 'early', name: 'Early', items: [item], createdAt: new Date('2026-01-01T20:00:00Z') },
+    })
+    await prisma.order.create({
+      data: { orderId: 'middle', name: 'Middle', items: [item], createdAt: new Date('2026-01-01T20:05:00Z') },
+    })
+
+    const response = await request(app).get('/api/orders')
+
+    expect(response.body.map((order) => order.name)).toEqual(['Early', 'Middle', 'Late'])
+  })
+
   test('ignores client-supplied cocktail details and uses the menu instead', async () => {
     const response = await request(app)
       .post('/api/orders')
@@ -193,6 +261,15 @@ describe('orders', () => {
     const response = await placeOrder(app, 'Max')
 
     expect(response.status).toBe(409)
+    expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+  })
+
+  test('accepts only one of several simultaneous orders from the same guest', async () => {
+    // Doppelklick oder zwei Tabs: alle Requests kommen an, bevor einer
+    // davon die Bestellung angelegt hat.
+    const responses = await Promise.all(Array.from({ length: 5 }, () => placeOrder(app, 'Max')))
+
+    expect(responses.map((r) => r.status).sort()).toEqual([201, 409, 409, 409, 409])
     expect((await request(app).get('/api/orders')).body).toHaveLength(1)
   })
 
@@ -216,6 +293,127 @@ describe('orders', () => {
     const response = await request(app).post('/api/orders').send(body)
 
     expect(response.status).toBe(400)
+  })
+
+  describe('starting an order', () => {
+    function start(orderId, auth = true) {
+      const req = request(app).patch(`/api/orders/${orderId}/start`)
+      return auth ? req.set('Authorization', `Bearer ${token}`) : req
+    }
+
+    test('marks the order as being prepared for everyone', async () => {
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      token = await barkeeperToken(app)
+      const { body } = await placeOrder(app, 'Max')
+      const before = (await request(app).get('/api/orders')).body[0]
+      expect(before.startedAt).toBeNull()
+
+      const response = await start(body.orderId)
+
+      expect(response.status).toBe(204)
+      const after = (await request(app).get('/api/orders')).body[0]
+      expect(new Date(after.startedAt).getTime()).not.toBeNaN()
+      expect(onChange).toHaveBeenCalledTimes(2)
+    })
+
+    test('keeps the first start time when tapped again', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await start(body.orderId)
+      const first = (await request(app).get('/api/orders')).body[0].startedAt
+
+      const response = await start(body.orderId)
+
+      expect(response.status).toBe(204)
+      expect((await request(app).get('/api/orders')).body[0].startedAt).toBe(first)
+    })
+
+    test('is barkeeper-only', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      expect((await start(body.orderId, false)).status).toBe(401)
+    })
+
+    test('rejects unknown or completed orders', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await complete(body.orderId)
+
+      expect((await start(body.orderId)).status).toBe(404)
+      expect((await start('does-not-exist')).status).toBe(404)
+    })
+
+    test('blocks cancelling once the bar has started', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await start(body.orderId)
+
+      const response = await request(app).delete(`/api/orders/${body.orderId}`).send({ name: 'Max' })
+
+      expect(response.status).toBe(409)
+      expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+    })
+  })
+
+  describe('cancelling by the guest', () => {
+    function cancel(orderId, name) {
+      return request(app).delete(`/api/orders/${orderId}`).send({ name })
+    }
+
+    test('removes the open order and allows a new one', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await cancel(body.orderId, 'Max')
+
+      expect(response.status).toBe(204)
+      expect((await request(app).get('/api/orders')).body).toEqual([])
+      expect((await placeOrder(app, 'Max')).status).toBe(201)
+    })
+
+    test('does not show up in the history', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await cancel(body.orderId, 'Max')
+
+      const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+
+      expect(history.body).toEqual([])
+    })
+
+    test('notifies live clients', async () => {
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      const { body } = await placeOrder(app, 'Max')
+
+      await cancel(body.orderId, 'Max')
+
+      expect(onChange).toHaveBeenCalledTimes(2)
+    })
+
+    test("rejects cancelling another guest's order", async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await cancel(body.orderId, 'Anna')
+
+      expect(response.status).toBe(404)
+      expect((await request(app).get('/api/orders')).body).toHaveLength(1)
+    })
+
+    test('rejects cancelling an order that is already done', async () => {
+      const { body } = await placeOrder(app, 'Max')
+      await complete(body.orderId)
+
+      const response = await cancel(body.orderId, 'Max')
+
+      expect(response.status).toBe(404)
+      const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+      expect(history.body).toHaveLength(1)
+    })
+
+    test('rejects a request without a name', async () => {
+      const { body } = await placeOrder(app, 'Max')
+
+      const response = await request(app).delete(`/api/orders/${body.orderId}`)
+
+      expect(response.status).toBe(400)
+    })
   })
 
   test('completing an order removes it from the open list', async () => {
@@ -356,8 +554,9 @@ describe('unavailable ingredients', () => {
 describe('ratings', () => {
   let app
 
-  beforeEach(() => {
+  beforeEach(async () => {
     app = buildTestApp()
+    await serve('Max', 1)
   })
 
   test('starts with no ratings for a guest', async () => {
@@ -401,6 +600,37 @@ describe('ratings', () => {
 
     expect(response.status).toBe(400)
   })
+
+  test.each([
+    ['a missing guest name', { cocktailId: 1, rating: 5 }],
+    ['a too long guest name', { guestName: 'x'.repeat(51), cocktailId: 1, rating: 5 }],
+    ['a missing cocktail', { guestName: 'Max', rating: 5 }],
+    ['an unknown cocktail', { guestName: 'Max', cocktailId: 9999, rating: 5 }],
+    ['a cocktail id as string', { guestName: 'Max', cocktailId: '1', rating: 5 }],
+  ])('rejects %s', async (_label, body) => {
+    const response = await request(app).post('/api/ratings').send(body)
+
+    expect(response.status).toBe(400)
+  })
+
+  test('rejects rating a cocktail the guest was never served', async () => {
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Max', cocktailId: 2, rating: 5 })
+
+    expect(response.status).toBe(403)
+    expect((await request(app).get('/api/ratings').query({ guest: 'Max' })).body).toEqual([])
+  })
+
+  test('rejects rating a cocktail that is ordered but not served yet', async () => {
+    await placeOrder(app, 'Anna')
+
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
+
+    expect(response.status).toBe(403)
+  })
 })
 
 describe('GET /api/recommendations', () => {
@@ -418,6 +648,8 @@ describe('GET /api/recommendations', () => {
   })
 
   test('recommends a cocktail liked by a guest with the same taste', async () => {
+    await serve('Max', 1)
+    await serve('Anna', 1, 2)
     await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 5 })
     await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
     await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 2, rating: 4 })
@@ -425,6 +657,301 @@ describe('GET /api/recommendations', () => {
     const response = await request(app).get('/api/recommendations').query({ guest: 'Max' })
 
     expect(response.body).toEqual([{ cocktailId: 2, predictedRating: 4 }])
+  })
+})
+
+describe('menu', () => {
+  let app
+  let token
+
+  const tiki = {
+    name: 'Rooftop Tiki',
+    category: 'Süß & Fruchtig',
+    movie: 'Hausrezept',
+    description: 'Fruchtig, mit Rum.',
+    recipe: {
+      ingredients: [
+        { name: 'Rum', amountCl: 5 },
+        { name: 'Ananassaft', amountCl: 10 },
+        { name: 'Minze', note: 'zum Garnieren' },
+      ],
+      ice: 'Auf Crushed Ice',
+      servedWithIceCubes: true,
+    },
+  }
+
+  beforeEach(async () => {
+    app = buildTestApp()
+    token = await barkeeperToken(app)
+  })
+
+  function addCocktail(body) {
+    return request(app).post('/api/menu').set('Authorization', `Bearer ${token}`).send(body)
+  }
+
+  function updateCocktail(id, body, auth = true) {
+    const req = request(app).put(`/api/menu/${id}`).send(body)
+    return auth ? req.set('Authorization', `Bearer ${token}`) : req
+  }
+
+  function removeCocktail(id) {
+    return request(app).delete(`/api/menu/${id}`).set('Authorization', `Bearer ${token}`)
+  }
+
+  test('lists the base menu', async () => {
+    const response = await request(app).get('/api/menu')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual(cocktails)
+  })
+
+  test('keeps all base menu ids below the custom range', () => {
+    expect(Math.max(...cocktails.map((c) => c.id))).toBeLessThan(FIRST_CUSTOM_ID)
+  })
+
+  test('adds a cocktail that guests can see, order and rate', async () => {
+    const onChange = vi.fn()
+    app = buildTestApp({ onChange })
+    token = await barkeeperToken(app)
+
+    const created = await addCocktail(tiki)
+
+    expect(created.status).toBe(201)
+    expect(created.body).toMatchObject({
+      name: 'Rooftop Tiki',
+      category: 'Süß & Fruchtig',
+      ingredients: ['Rum', 'Ananassaft', 'Minze'],
+      custom: true,
+    })
+    expect(created.body.id).toBeGreaterThanOrEqual(FIRST_CUSTOM_ID)
+    expect(onChange).toHaveBeenCalledTimes(1)
+
+    const menu = await request(app).get('/api/menu')
+    expect(menu.body.at(-1)).toEqual(created.body)
+
+    const order = await request(app)
+      .post('/api/orders')
+      .send({ name: 'Max', items: [{ id: created.body.id }] })
+    expect(order.status).toBe(201)
+    expect(order.body.items[0].name).toBe('Rooftop Tiki')
+  })
+
+  test('normalizes whitespace and drops empty optional fields', async () => {
+    const created = await addCocktail({
+      name: '  Rooftop\n Tiki ',
+      category: 'Süß & Fruchtig',
+      recipe: { ingredients: [{ name: 'Rum', amountCl: '' }] },
+    })
+
+    expect(created.status).toBe(201)
+    expect(created.body).toMatchObject({
+      name: 'Rooftop Tiki',
+      movie: '',
+      recipe: { ingredients: [{ name: 'Rum' }], ice: '', servedWithIceCubes: false },
+    })
+    expect(created.body).not.toHaveProperty('description')
+  })
+
+  test('is barkeeper-only', async () => {
+    const response = await request(app).post('/api/menu').send(tiki)
+
+    expect(response.status).toBe(401)
+  })
+
+  test.each([
+    ['a missing name', { ...tiki, name: '' }],
+    ['a too long name', { ...tiki, name: 'x'.repeat(61) }],
+    ['an unknown category', { ...tiki, category: 'Erfunden' }],
+    ['no ingredients', { ...tiki, recipe: { ...tiki.recipe, ingredients: [] } }],
+    ['too many ingredients', { ...tiki, recipe: { ...tiki.recipe, ingredients: Array.from({ length: 13 }, (_, i) => ({ name: `Zutat ${i}` })) } }],
+    ['an ingredient without name', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ amountCl: 4 }] } }],
+    ['a duplicate ingredient', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum' }, { name: 'rum' }] } }],
+    ['a negative amount', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: -1 }] } }],
+    ['a huge amount', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: 51 }] } }],
+    ['an amount as text', { ...tiki, recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: '4' }] } }],
+  ])('rejects %s', async (_label, body) => {
+    const response = await addCocktail(body)
+
+    expect(response.status).toBe(400)
+  })
+
+  test('rejects a name that is already on the menu, ignoring case', async () => {
+    const baseName = await addCocktail({ ...tiki, name: cocktails[0].name.toUpperCase() })
+    expect(baseName.status).toBe(409)
+
+    await addCocktail(tiki)
+    const again = await addCocktail({ ...tiki, name: 'rooftop tiki' })
+    expect(again.status).toBe(409)
+  })
+
+  test('removes a custom cocktail; it can no longer be ordered', async () => {
+    const { body } = await addCocktail(tiki)
+
+    const response = await removeCocktail(body.id)
+
+    expect(response.status).toBe(204)
+    expect((await request(app).get('/api/menu')).body).toEqual(cocktails)
+    const order = await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: body.id }] })
+    expect(order.status).toBe(400)
+  })
+
+  describe('editing', () => {
+    test('changes a custom cocktail for everyone, keeping its id', async () => {
+      const { body: created } = await addCocktail(tiki)
+      const onChange = vi.fn()
+      app = buildTestApp({ onChange })
+      token = await barkeeperToken(app)
+
+      const response = await updateCocktail(created.id, {
+        ...tiki,
+        name: 'Rooftop Tiki Deluxe',
+        recipe: { ...tiki.recipe, ingredients: [{ name: 'Rum', amountCl: 6 }, { name: 'Maracujasaft', amountCl: 8 }] },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.body).toMatchObject({
+        id: created.id,
+        name: 'Rooftop Tiki Deluxe',
+        ingredients: ['Rum', 'Maracujasaft'],
+        custom: true,
+      })
+      expect(onChange).toHaveBeenCalledTimes(1)
+      const menu = (await request(app).get('/api/menu')).body
+      expect(menu.filter((c) => c.custom)).toEqual([response.body])
+    })
+
+    test('keeps the old version in orders placed before the change', async () => {
+      const { body: created } = await addCocktail(tiki)
+      await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: created.id }] })
+
+      await updateCocktail(created.id, { ...tiki, name: 'Umbenannt' })
+
+      const open = (await request(app).get('/api/orders')).body
+      expect(open[0].items[0].name).toBe('Rooftop Tiki')
+    })
+
+    test('may keep its own name, also with different case', async () => {
+      const { body: created } = await addCocktail(tiki)
+
+      const response = await updateCocktail(created.id, { ...tiki, name: 'ROOFTOP TIKI' })
+
+      expect(response.status).toBe(200)
+      expect(response.body.name).toBe('ROOFTOP TIKI')
+    })
+
+    test("rejects another drink's name", async () => {
+      const { body: first } = await addCocktail(tiki)
+      await addCocktail({ ...tiki, name: 'Zweiter' })
+
+      expect((await updateCocktail(first.id, { ...tiki, name: 'zweiter' })).status).toBe(409)
+      expect((await updateCocktail(first.id, { ...tiki, name: cocktails[0].name })).status).toBe(409)
+    })
+
+    test('validates like adding', async () => {
+      const { body: created } = await addCocktail(tiki)
+
+      const response = await updateCocktail(created.id, { ...tiki, category: 'Erfunden' })
+
+      expect(response.status).toBe(400)
+      expect((await request(app).get('/api/menu')).body.at(-1).category).toBe(tiki.category)
+    })
+
+    test('is barkeeper-only and only for custom cocktails', async () => {
+      const { body: created } = await addCocktail(tiki)
+
+      expect((await updateCocktail(created.id, tiki, false)).status).toBe(401)
+      expect((await updateCocktail(cocktails[0].id, tiki)).status).toBe(404)
+      expect((await updateCocktail(99999, tiki)).status).toBe(404)
+    })
+  })
+
+  test('does not remove base menu cocktails', async () => {
+    const response = await removeCocktail(cocktails[0].id)
+
+    expect(response.status).toBe(404)
+    expect((await request(app).get('/api/menu')).body).toHaveLength(cocktails.length)
+  })
+
+  test('keeps a removed cocktail in the history of guests who had it', async () => {
+    const { body } = await addCocktail(tiki)
+    const order = await request(app).post('/api/orders').send({ name: 'Max', items: [{ id: body.id }] })
+    await request(app)
+      .patch(`/api/orders/${order.body.orderId}/complete`)
+      .set('Authorization', `Bearer ${token}`)
+
+    await removeCocktail(body.id)
+
+    const history = await request(app).get('/api/orders/history').query({ guest: 'Max' })
+    expect(history.body[0].items[0].name).toBe('Rooftop Tiki')
+  })
+})
+
+describe('GET /api/stats', () => {
+  let app
+  let token
+
+  beforeEach(async () => {
+    app = buildTestApp()
+    token = await barkeeperToken(app)
+  })
+
+  function getStats(query = {}) {
+    return request(app).get('/api/stats').query(query).set('Authorization', `Bearer ${token}`)
+  }
+
+  test('is barkeeper-only', async () => {
+    const response = await request(app).get('/api/stats')
+
+    expect(response.status).toBe(401)
+  })
+
+  test('is empty without served orders', async () => {
+    const response = await getStats()
+
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      servedDrinks: 0,
+      guests: 0,
+      openOrders: 0,
+      averageRating: null,
+      topCocktails: [],
+      topRated: [],
+      ingredientUsage: [],
+    })
+  })
+
+  test('counts served drinks, open orders and ratings', async () => {
+    await serve('Max', 1, 1)
+    await serve('Anna', 1)
+    await placeOrder(app, 'Lea')
+    await request(app).post('/api/ratings').send({ guestName: 'Max', cocktailId: 1, rating: 4 })
+    await request(app).post('/api/ratings').send({ guestName: 'Anna', cocktailId: 1, rating: 5 })
+
+    const { body } = await getStats()
+
+    expect(body).toMatchObject({ servedDrinks: 3, guests: 2, openOrders: 1, averageRating: 4.5 })
+    expect(body.topCocktails).toEqual([{ cocktailId: 1, name: cocktails[0].name, count: 3 }])
+    expect(body.topRated).toEqual([
+      { cocktailId: 1, name: cocktails[0].name, averageRating: 4.5, ratingCount: 2 },
+    ])
+  })
+
+  test('limits to orders completed since the given time', async () => {
+    const item = { ...cocktails[0], orderId: 'item' }
+    await prisma.order.create({
+      data: { orderId: 'old', name: 'Max', items: [item], completedAt: new Date('2026-01-01T20:00:00Z') },
+    })
+    await serve('Anna', 1)
+
+    const { body } = await getStats({ since: '2026-06-01T00:00:00Z' })
+
+    expect(body).toMatchObject({ servedDrinks: 1, guests: 1 })
+  })
+
+  test('rejects an invalid since', async () => {
+    const response = await getStats({ since: 'gestern' })
+
+    expect(response.status).toBe(400)
   })
 })
 

@@ -1,0 +1,15 @@
+{
+  // Eigene Konfiguration: E2E-Tests und Playwright-Config laufen in Node,
+  // die Node-Typen sollen nicht in den Browser-Code (src/) durchsickern.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "strict": true
+  },
+  "include": [".", "../playwright.config.ts"]
+}

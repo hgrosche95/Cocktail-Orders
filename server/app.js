@@ -2,9 +2,11 @@ import express from 'express'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { recommendCocktails } from './recommendations.js'
+import { computeStats } from './stats.js'
 import { recommendByText as defaultRecommendByText } from './groq.js'
 import { createBarkeeperToken, passwordMatches, requireBarkeeper } from './barkeeperAuth.js'
-import { cocktails, findCocktail } from './menu.js'
+import { categories, createMenu } from './menu.js'
+import { parseCocktailInput } from './cocktailInput.js'
 
 const MAX_NAME_LENGTH = 50
 const MAX_NOTE_LENGTH = 200
@@ -26,6 +28,7 @@ export function createApp({
 } = {}) {
   const app = express()
   const barkeeperOnly = requireBarkeeper(barkeeperPassword)
+  const menu = createMenu(prisma)
 
   // Genau ein Proxy (Azure-Container-Apps-Ingress) vor dem Server, sonst waere
   // req.ip fuer alle Anfragen die Proxy-IP und alle teilten sich ein Limit.
@@ -61,13 +64,123 @@ export function createApp({
     }
   )
 
+  // Ganze Karte: Grundkarte aus shared/cocktails.json plus die Drinks, die
+  // die Theke angelegt hat (custom: true).
+  app.get('/api/menu', async (req, res) => {
+    res.json(await menu.all())
+  })
+
+  // Name schon auf der Karte (Grundkarte oder eigene Drinks), ohne
+  // Gross/Klein; exceptId: der Drink, der gerade bearbeitet wird.
+  async function isNameTaken(name, exceptId) {
+    const key = name.toLocaleLowerCase('de')
+    const existing = await menu.all()
+    return existing.some(
+      (cocktail) => cocktail.id !== exceptId && cocktail.name.toLocaleLowerCase('de') === key
+    )
+  }
+
+  app.post('/api/menu', barkeeperOnly, async (req, res) => {
+    const parsed = parseCocktailInput(req.body, { categories })
+    if (parsed.error) {
+      res.status(400).json({ error: parsed.error })
+      return
+    }
+
+    const { name, data } = parsed.value
+    if (await isNameTaken(name)) {
+      res.status(409).json({ error: 'a cocktail with this name already exists' })
+      return
+    }
+
+    let row
+    try {
+      row = await prisma.customCocktail.create({ data: { name, data } })
+    } catch (error) {
+      // Gleichzeitig angelegt: der Unique-Index auf name greift.
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'a cocktail with this name already exists' })
+        return
+      }
+      throw error
+    }
+
+    menu.invalidate()
+    onChange()
+    const findCocktail = await menu.finder()
+    res.status(201).json(findCocktail(row.id))
+  })
+
+  // Eigenen Drink aendern (ganzer Eintrag, dieselben Regeln wie beim
+  // Anlegen). Offene und alte Bestellungen behalten ihre Kopie, also die
+  // Fassung von damals - auch an der Theke fuer schon bestellte Drinks.
+  app.put('/api/menu/:id', barkeeperOnly, async (req, res) => {
+    const id = Number(req.params.id)
+    const row = Number.isInteger(id) ? await prisma.customCocktail.findUnique({ where: { id } }) : null
+    if (!row) {
+      res.status(404).json({ error: 'no custom cocktail with this id' })
+      return
+    }
+
+    const parsed = parseCocktailInput(req.body, { categories })
+    if (parsed.error) {
+      res.status(400).json({ error: parsed.error })
+      return
+    }
+
+    const { name, data } = parsed.value
+    if (await isNameTaken(name, id)) {
+      res.status(409).json({ error: 'a cocktail with this name already exists' })
+      return
+    }
+
+    try {
+      await prisma.customCocktail.update({ where: { id }, data: { name, data } })
+    } catch (error) {
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'a cocktail with this name already exists' })
+        return
+      }
+      throw error
+    }
+
+    menu.invalidate()
+    onChange()
+    const findCocktail = await menu.finder()
+    res.json(findCocktail(id))
+  })
+
+  // Nur Drinks der Theke; die Grundkarte aendert sich nur per Commit.
+  // Bestellungen behalten ihre Kopie des Drinks, Bewertungen bleiben stehen
+  // (Statistik und Empfehlungen ueberspringen Drinks, die es nicht mehr gibt).
+  app.delete('/api/menu/:id', barkeeperOnly, async (req, res) => {
+    const id = Number(req.params.id)
+    const { count } = Number.isInteger(id)
+      ? await prisma.customCocktail.deleteMany({ where: { id } })
+      : { count: 0 }
+    if (count === 0) {
+      res.status(404).json({ error: 'no custom cocktail with this id' })
+      return
+    }
+
+    menu.invalidate()
+    onChange()
+    res.status(204).end()
+  })
+
   app.get('/api/orders', async (req, res) => {
-    const rows = await prisma.order.findMany({ where: { completedAt: null } })
+    // Die Reihenfolge ist die Warteschlange: der Gast leitet daraus seine
+    // Position ab, die Theke arbeitet sie von oben nach unten ab.
+    const rows = await prisma.order.findMany({
+      where: { completedAt: null },
+      orderBy: { createdAt: 'asc' },
+    })
     const orders = rows.map((row) => ({
       orderId: row.orderId,
       name: row.name,
       items: row.items,
       note: row.note,
+      startedAt: row.startedAt,
     }))
     res.json(orders)
   })
@@ -107,6 +220,7 @@ export function createApp({
 
     // Die Positionen werden aus der Server-Karte gebaut, nicht vom Client
     // uebernommen: der Client liefert nur, WELCHER Cocktail es ist.
+    const findCocktail = await menu.finder()
     const menuItems = items.map((item) => findCocktail(item?.id))
     if (menuItems.some((cocktail) => !cocktail)) {
       res.status(400).json({ error: 'unknown cocktail' })
@@ -124,12 +238,71 @@ export function createApp({
     }
 
     const orderId = crypto.randomUUID()
-    await prisma.order.create({
-      data: { orderId, name: trimmedName, items: orderItems, note },
-    })
+    try {
+      await prisma.order.create({
+        data: { orderId, name: trimmedName, items: orderItems, note },
+      })
+    } catch (error) {
+      // Die Pruefung oben ist nicht atomar: kommen zwei Requests gleichzeitig
+      // an, sehen beide noch keine offene Bestellung. Der partielle Unique-
+      // Index (siehe schema.prisma) laesst dann nur einen durch.
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'guest already has an open order' })
+        return
+      }
+      throw error
+    }
 
     onChange()
     res.status(201).json({ orderId, name: trimmedName, items: orderItems, note })
+  })
+
+  // Storno durch den Gast selbst, solange die Bestellung offen ist. Gaeste
+  // haben keine Accounts (siehe README, Security model): der Name im Body
+  // muss zur Bestellung passen, mehr Nachweis gibt es nicht. Die Bestellung
+  // wird geloescht statt markiert - sie wurde nie serviert, gehoert also
+  // weder in die Historie noch in Bewertungen oder Statistik.
+  app.delete('/api/orders/:id', async (req, res) => {
+    const { name } = req.body ?? {}
+    if (typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'name is required' })
+      return
+    }
+
+    const where = { orderId: req.params.id, name: name.trim(), completedAt: null }
+    const { count } = await prisma.order.deleteMany({ where: { ...where, startedAt: null } })
+    if (count === 0) {
+      // Wird schon gemixt: dann bleibt es dabei.
+      if (await prisma.order.findFirst({ where })) {
+        res.status(409).json({ error: 'order is already being prepared' })
+        return
+      }
+      // Unbekannt, fremd oder schon fertig: fuer den Gast dasselbe.
+      res.status(404).json({ error: 'no open order with this id for this guest' })
+      return
+    }
+
+    onChange()
+    res.status(204).end()
+  })
+
+  // Theke faengt an zu mixen: der Gast sieht "Wird gemixt". Mehrfaches
+  // Antippen aendert den Zeitpunkt nicht.
+  app.patch('/api/orders/:id/start', barkeeperOnly, async (req, res) => {
+    const { count } = await prisma.order.updateMany({
+      where: { orderId: req.params.id, completedAt: null, startedAt: null },
+      data: { startedAt: new Date() },
+    })
+    const isOpen =
+      count > 0 ||
+      (await prisma.order.findFirst({ where: { orderId: req.params.id, completedAt: null } }))
+    if (!isOpen) {
+      res.status(404).json({ error: 'no open order with this id' })
+      return
+    }
+
+    if (count > 0) onChange()
+    res.status(204).end()
   })
 
   // War frueher ein DELETE (Bestellung wurde komplett geloescht). Jetzt ein
@@ -188,10 +361,34 @@ export function createApp({
   })
 
   app.post('/api/ratings', async (req, res) => {
-    const { guestName, cocktailId, rating } = req.body
+    const { guestName, cocktailId, rating } = req.body ?? {}
 
+    if (typeof guestName !== 'string' || !guestName || guestName.length > MAX_NAME_LENGTH) {
+      res.status(400).json({ error: `guestName must be 1-${MAX_NAME_LENGTH} characters` })
+      return
+    }
+    const findCocktail = await menu.finder()
+    if (!findCocktail(cocktailId)) {
+      res.status(400).json({ error: 'unknown cocktail' })
+      return
+    }
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       res.status(400).json({ error: 'rating must be an integer between 1 and 5' })
+      return
+    }
+
+    // Bewerten nur, was man auch serviert bekommen hat (so bietet es auch
+    // die Bestellhistorie an). Sonst koennte jeder beliebig viele Fantasie-
+    // Bewertungen abgeben und die Empfehlungen fuer alle verfaelschen.
+    const servedOrder = await prisma.order.findFirst({
+      where: {
+        name: guestName,
+        completedAt: { not: null },
+        items: { array_contains: [{ id: cocktailId }] },
+      },
+    })
+    if (!servedOrder) {
+      res.status(403).json({ error: 'guest has not been served this cocktail' })
       return
     }
 
@@ -215,7 +412,37 @@ export function createApp({
     res.json(recommendations)
   })
 
-  // Die Karte fuer den System-Prompt kommt aus shared/cocktails.json, nicht
+  // Statistik fuer die Theke. ?since=<ISO-Zeitpunkt> schraenkt auf einen
+  // Zeitraum ein (z.B. die aktuelle Party), ohne zaehlt alles.
+  app.get('/api/stats', barkeeperOnly, async (req, res) => {
+    const { since } = req.query
+    let sinceDate
+    if (since !== undefined) {
+      sinceDate = new Date(since)
+      if (typeof since !== 'string' || Number.isNaN(sinceDate.getTime())) {
+        res.status(400).json({ error: 'since must be an ISO date' })
+        return
+      }
+    }
+
+    const [servedOrders, ratings, openOrders] = await Promise.all([
+      prisma.order.findMany({
+        where: { completedAt: sinceDate ? { gte: sinceDate } : { not: null } },
+        select: { name: true, items: true },
+      }),
+      prisma.rating.findMany({
+        where: sinceDate ? { updatedAt: { gte: sinceDate } } : {},
+        select: { cocktailId: true, rating: true },
+      }),
+      prisma.order.count({ where: { completedAt: null } }),
+    ])
+
+    const findCocktail = await menu.finder()
+    res.json({ ...computeStats({ servedOrders, ratings, findCocktail }), openOrders })
+  })
+
+  // Die Karte fuer den System-Prompt kommt vom Server (Grundkarte plus
+  // Drinks der Theke, siehe menu.js), nicht
   // vom Client: sonst koennte jeder beliebigen Text in den vertrauenswuerdigen
   // Teil des Prompts schreiben. Jede Anfrage kostet Groq-Kontingent, deshalb
   // Limit pro IP und Laengengrenze.
@@ -228,7 +455,7 @@ export function createApp({
     }
 
     try {
-      const result = await recommendByText({ text, cocktails })
+      const result = await recommendByText({ text, cocktails: await menu.all() })
       res.json(result)
     } catch (error) {
       console.error('Groq-Anfrage fehlgeschlagen:', error)
@@ -244,6 +471,28 @@ export function createApp({
 
       res.status(502).json({ error: 'Empfehlung derzeit nicht verfügbar' })
     }
+  })
+
+  // Unbekannte API-Pfade als JSON statt Expresss HTML-Seite.
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: 'not_found' })
+  })
+
+  // Fehler aus den Routen (Express 5 leitet auch abgelehnte Promises hierher
+  // weiter, z.B. wenn die Datenbank nicht erreichbar ist). Ohne diesen
+  // Handler antwortet Express mit einer HTML-Seite, die ausserhalb der
+  // Produktion den Stacktrace enthaelt.
+  // eslint-disable-next-line no-unused-vars -- Express erkennt Fehler-Handler an den 4 Parametern
+  app.use((error, req, res, next) => {
+    // Fehler mit Status < 500 kommen von Express selbst, z.B. kaputtes JSON
+    // im Body (400) oder zu grosser Body (413).
+    if (error.status >= 400 && error.status < 500) {
+      res.status(error.status).json({ error: error.type ?? 'bad_request' })
+      return
+    }
+
+    console.error(new Date().toISOString(), req.method, req.path, error)
+    res.status(500).json({ error: 'internal_error' })
   })
 
   return app

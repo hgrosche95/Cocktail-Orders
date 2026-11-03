@@ -6,25 +6,21 @@ import CustomerPage from './pages/CustomerPage'
 import BarkeeperPage from './pages/BarkeeperPage'
 import Skyline from './components/Skyline'
 import DrinkPage from './pages/DrinkPage'
-import cocktails from './data/cocktails'
+import StatsPage from './pages/StatsPage'
+import type { Stats } from './pages/StatsPage'
+import baseCocktails from './data/cocktails'
+import { MenuContext } from './data/menu'
+import MenuEditorPage from './pages/MenuEditorPage'
+import type { NewCocktail } from './pages/MenuEditorPage'
+import { connectLiveUpdates } from './liveUpdates'
+import { WS_URL, getJson, sendJson } from './api'
+import { useGuestData } from './hooks/useGuestData'
+import { useBarkeeperAuth } from './hooks/useBarkeeperAuth'
+import { useWish } from './hooks/useWish'
+import { useNewOrderChime } from './hooks/useNewOrderChime'
+import { playChime, unlockChime } from './chime'
 import type { Cocktail } from './data/cocktails'
-import type { OrderItem, SubmittedOrder, Recommendation } from './types'
-
-// VITE_API_URL wird beim Produktions-Build gesetzt (Container-App-URL, https).
-// Ohne den Wert (lokale Entwicklung/LAN-Nutzung) zeigt die App weiterhin auf
-// Port 3001 desselben Hosts, von dem sie geladen wurde.
-const API_BASE = import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:3001`
-const API_URL = `${API_BASE}/api`
-const WS_URL = API_BASE.replace(/^http/, 'ws')
-
-// Wirft bei Fehlerstatus, damit kein Fehler-Body (z.B. {"error": ...}) im
-// State landet, wo eine Liste erwartet wird.
-function getJson<T>(url: string): Promise<T> {
-  return fetch(url).then((res) => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return res.json()
-  })
-}
+import type { OrderItem, SubmittedOrder } from './types'
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
@@ -37,19 +33,15 @@ function App() {
   })
 
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
+  const [hasLoadedOrders, setHasLoadedOrders] = useState(false)
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
-  const [history, setHistory] = useState<SubmittedOrder[]>([])
-  const [ratings, setRatings] = useState<Record<number, number>>({})
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  // Grundkarte sofort, die ganze Karte (mit Drinks der Theke) sobald der
+  // Server antwortet und nach jeder Live-Aenderung.
+  const [menu, setMenu] = useState<Cocktail[]>(baseCocktails)
   const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
-  const [textRecommendations, setTextRecommendations] = useState<Recommendation[]>([])
-  const [isTextRecommending, setIsTextRecommending] = useState(false)
-  const [wishNote, setWishNote] = useState('')
-  // Nur fuer die aktuelle Sitzung (kein localStorage) - bei Neuladen der
-  // Seite wird es einfach erneut versucht. Ein Groq-Tageslimit ist am
-  // naechsten Tag ohnehin wieder frei, ein dauerhaftes Abschalten braucht es
-  // dafuer nicht.
-  const [isWishFeatureDisabled, setIsWishFeatureDisabled] = useState(false)
+  // Zaehlt jede Live-Aenderung mit; Ansichten, die selbst laden (Statistik),
+  // laden darauf neu.
+  const [liveVersion, setLiveVersion] = useState(0)
 
   const [currentUser, setCurrentUser] = useState(
     () => localStorage.getItem('currentUser') ?? ''
@@ -62,56 +54,41 @@ function App() {
   const [isServerUnreachable, setIsServerUnreachable] = useState(false)
   const reportUnreachable = useCallback(() => setIsServerUnreachable(true), [])
 
+  const { history, ratings, recommendations, refreshGuestData, rateCocktail } = useGuestData(
+    currentUser,
+    reportUnreachable
+  )
+  const { isBarkeeperAuthenticated, login: handleBarkeeperLogin, barkeeperFetch } =
+    useBarkeeperAuth()
+
   useEffect(() => {
     currentUserRef.current = currentUser
   }, [currentUser])
 
-  const fetchHistory = useCallback((guest: string) => {
-    getJson<SubmittedOrder[]>(`${API_URL}/orders/history?guest=${encodeURIComponent(guest)}`)
-      .then(setHistory)
-      .catch(reportUnreachable)
-  }, [reportUnreachable])
-
-  const fetchRatings = useCallback((guest: string) => {
-    getJson<{ cocktailId: number; rating: number }[]>(
-      `${API_URL}/ratings?guest=${encodeURIComponent(guest)}`
-    )
-      .then((data) => {
-        const map: Record<number, number> = {}
-        for (const { cocktailId, rating } of data) map[cocktailId] = rating
-        setRatings(map)
-      })
-      .catch(reportUnreachable)
-  }, [reportUnreachable])
-
-  const fetchRecommendations = useCallback((guest: string) => {
-    getJson<Recommendation[]>(`${API_URL}/recommendations?guest=${encodeURIComponent(guest)}`)
-      .then(setRecommendations)
-      .catch(reportUnreachable)
-  }, [reportUnreachable])
-
   useEffect(() => {
     function fetchOpenOrders() {
-      getJson<SubmittedOrder[]>(`${API_URL}/orders`)
+      getJson<SubmittedOrder[]>('/orders')
         .then((data) => {
           setOpenOrders(data)
+          setHasLoadedOrders(true)
           setIsServerUnreachable(false)
         })
         .catch(reportUnreachable)
     }
 
     function fetchUnavailableIngredients() {
-      getJson<string[]>(`${API_URL}/unavailable-ingredients`)
+      getJson<string[]>('/unavailable-ingredients')
         .then(setUnavailableIngredients)
         .catch(reportUnreachable)
     }
 
-    fetchOpenOrders()
-    fetchUnavailableIngredients()
+    function fetchMenu() {
+      getJson<Cocktail[]>('/menu').then(setMenu).catch(reportUnreachable)
+    }
 
-    const socket = new WebSocket(WS_URL)
-
-    socket.addEventListener('message', () => {
+    function refreshAll() {
+      setLiveVersion((version) => version + 1)
+      fetchMenu()
       fetchOpenOrders()
       fetchUnavailableIngredients()
 
@@ -119,30 +96,16 @@ function App() {
       // fertig markiert hat - die Historie muss das mitbekommen, damit der
       // Bewertungs-Prompt fuer den neu abgeholten Cocktail erscheint.
       if (currentUserRef.current) {
-        fetchHistory(currentUserRef.current)
-        fetchRatings(currentUserRef.current)
-        fetchRecommendations(currentUserRef.current)
-      }
-    })
-
-    return () => {
-      // React-StrictMode startet den Effekt in der Entwicklung zweimal. Ein
-      // close() mitten im Verbindungsaufbau meldet der Browser als Warnung,
-      // deshalb dann erst nach dem Aufbau schliessen.
-      if (socket.readyState === WebSocket.CONNECTING) {
-        socket.addEventListener('open', () => socket.close())
-      } else {
-        socket.close()
+        refreshGuestData(currentUserRef.current)
       }
     }
-  }, [fetchHistory, fetchRatings, fetchRecommendations, reportUnreachable])
 
-  useEffect(() => {
-    if (!currentUser) return
-    fetchHistory(currentUser)
-    fetchRatings(currentUser)
-    fetchRecommendations(currentUser)
-  }, [currentUser, fetchHistory, fetchRatings, fetchRecommendations])
+    fetchMenu()
+    fetchOpenOrders()
+    fetchUnavailableIngredients()
+
+    return connectLiveUpdates(WS_URL, { onChange: refreshAll, onReconnect: refreshAll })
+  }, [refreshGuestData, reportUnreachable])
 
   useEffect(() => {
     localStorage.setItem('order', JSON.stringify(order))
@@ -164,6 +127,9 @@ function App() {
     orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  const { textRecommendations, isTextRecommending, wishNote, isWishFeatureDisabled, submitWish } =
+    useWish({ cocktails: menu, unavailableIngredients, onSingleMatch: handleAddToOrder })
+
   function handleOrderNow(cocktail: Cocktail, note: string) {
     handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
   }
@@ -178,16 +144,29 @@ function App() {
   const ownOpenOrder = ownOrderIndex === -1 ? null : openOrders[ownOrderIndex]
   const hasOpenOrder = ownOpenOrder !== null
 
+  // "Fertig" heisst: die eigene offene Bestellung ist verschwunden UND steht
+  // jetzt in der Historie. Nur aufs Verschwinden zu schauen, wuerde auch
+  // nach einem Storno "fertig" melden. Beides kommt nach einer Aenderung in
+  // beliebiger Reihenfolge an, deshalb ein Effekt fuer beide.
   const [showReadyNotification, setShowReadyNotification] = useState(false)
-  const previousHasOpenOrder = useRef(false)
+  const ownOpenOrderId = ownOpenOrder?.orderId ?? null
+  const previousOwnOrderId = useRef<string | null>(null)
+  const awaitingReadyOrderId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (previousHasOpenOrder.current && !hasOpenOrder) {
+    const previousId = previousOwnOrderId.current
+    previousOwnOrderId.current = ownOpenOrderId
+    if (previousId && previousId !== ownOpenOrderId) {
+      awaitingReadyOrderId.current = previousId
+    }
+
+    const awaitedId = awaitingReadyOrderId.current
+    if (awaitedId && history.some((o) => o.orderId === awaitedId)) {
+      awaitingReadyOrderId.current = null
       setShowReadyNotification(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-    previousHasOpenOrder.current = hasOpenOrder
-  }, [hasOpenOrder])
+  }, [ownOpenOrderId, history])
 
   // items ist optional: die Karte schickt die vorgemerkte Bestellung ab, die
   // Detailansicht eines Drinks bestellt ihn direkt, ohne Umweg ueber `order`
@@ -195,11 +174,7 @@ function App() {
   function handleSubmitOrder(note: string, items: OrderItem[] = order) {
     if (hasOpenOrder) return
 
-    fetch(`${API_URL}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: currentUser, items, note }),
-    })
+    sendJson('/orders', 'POST', { name: currentUser, items, note })
       // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B. aus
       // einem zweiten Tab), dann nichts in die lokale Liste uebernehmen.
       .then((res) => (res.ok ? res.json() : null))
@@ -211,42 +186,23 @@ function App() {
       .catch(reportUnreachable)
   }
 
-  // Das Token vom Server ist der eigentliche Nachweis: die Barkeeper-Routen
-  // pruefen es, ein reines "isBarkeeper"-Flag im Browser haette jeder setzen
-  // koennen.
-  const [barkeeperToken, setBarkeeperToken] = useState(
-    () => sessionStorage.getItem('barkeeperToken')
-  )
-  const isBarkeeperAuthenticated = barkeeperToken !== null
-
-  function barkeeperFetch(path: string, init: RequestInit = {}) {
-    const headers = new Headers(init.headers)
-    headers.set('Authorization', `Bearer ${barkeeperToken}`)
-    return fetch(`${API_URL}${path}`, { ...init, headers }).then((res) => {
-      // Token abgelaufen (nach 12 h) oder Passwort geaendert: neu anmelden.
-      if (res.status === 401) {
-        sessionStorage.removeItem('barkeeperToken')
-        setBarkeeperToken(null)
-      }
-      return res
-    })
+  function handleCancelOrder(orderId: string) {
+    sendJson(`/orders/${orderId}`, 'DELETE', { name: currentUser }).then((res) => {
+      // 404: inzwischen fertig oder schon storniert - dann kommt der echte
+      // Stand ohnehin ueber die Live-Updates.
+      if (!res.ok) return
+      setOpenOrders((prevOpenOrders) => prevOpenOrders.filter((o) => o.orderId !== orderId))
+    }, reportUnreachable)
   }
 
-  function handleBarkeeperLogin(password: string): Promise<boolean> {
-    return fetch(`${API_URL}/barkeeper-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    })
-      .then((res) => res.json())
-      .then((data: { success: boolean; token?: string }) => {
-        if (data.success && data.token) {
-          sessionStorage.setItem('barkeeperToken', data.token)
-          setBarkeeperToken(data.token)
-          return true
-        }
-        return false
-      })
+  function handleStartOrder(orderId: string) {
+    barkeeperFetch(`/orders/${orderId}/start`, { method: 'PATCH' }).then((res) => {
+      if (!res.ok) return
+      const startedAt = new Date().toISOString()
+      setOpenOrders((prevOpenOrders) =>
+        prevOpenOrders.map((o) => (o.orderId === orderId && !o.startedAt ? { ...o, startedAt } : o))
+      )
+    }, reportUnreachable)
   }
 
   function handleMarkAsDone(orderId: string) {
@@ -260,65 +216,59 @@ function App() {
     }, reportUnreachable)
   }
 
-  function handleRateCocktail(cocktailId: number, rating: number) {
-    fetch(`${API_URL}/ratings`, {
-      method: 'POST',
+  // Neuer oder geaenderter Drink der Theke. Liefert die Fehlermeldung fuer
+  // das Formular oder null bei Erfolg; die Karte kommt zusaetzlich ueber
+  // die Live-Updates neu.
+  function saveCocktail(path: string, method: string, input: NewCocktail): Promise<string | null> {
+    return barkeeperFetch(path, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guestName: currentUser, cocktailId, rating }),
-    }).then(() => {
-      setRatings((prev) => ({ ...prev, [cocktailId]: rating }))
-      fetchRecommendations(currentUser)
+      body: JSON.stringify(input),
+    }).then(
+      async (res) => {
+        if (res.ok) {
+          const saved: Cocktail = await res.json()
+          setMenu((prev) =>
+            prev.some((c) => c.id === saved.id)
+              ? prev.map((c) => (c.id === saved.id ? saved : c))
+              : [...prev, saved]
+          )
+          return null
+        }
+        if (res.status === 409) return 'Einen Drink mit diesem Namen gibt es schon.'
+        if (res.status === 401) return 'Bitte neu anmelden.'
+        if (res.status === 404) return 'Diesen Drink gibt es nicht mehr.'
+        return 'Bitte die Angaben prüfen.'
+      },
+      () => 'Server nicht erreichbar.'
+    )
+  }
+
+  function handleAddCocktail(input: NewCocktail) {
+    return saveCocktail('/menu', 'POST', input)
+  }
+
+  function handleUpdateCocktail(id: number, input: NewCocktail) {
+    return saveCocktail(`/menu/${id}`, 'PUT', input)
+  }
+
+  function handleRemoveCocktail(id: number) {
+    barkeeperFetch(`/menu/${id}`, { method: 'DELETE' }).then((res) => {
+      if (!res.ok) return
+      setMenu((prev) => prev.filter((c) => c.id !== id))
     }, reportUnreachable)
   }
 
+  const loadStats = useCallback(
+    (since: string | null): Promise<Stats | null> => {
+      const query = since ? `?since=${encodeURIComponent(since)}` : ''
+      return barkeeperFetch(`/stats${query}`).then((res) => (res.ok ? res.json() : null))
+    },
+    [barkeeperFetch]
+  )
+
   function handleDismissRatingPrompt(orderId: string) {
     setDismissedHistoryOrderId(orderId)
-  }
-
-  function handleWishSubmit(text: string) {
-    setIsTextRecommending(true)
-    fetch(`${API_URL}/recommend-by-text`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    })
-      .then((res) => {
-        // Groq-Tages-/Ratenlimit erreicht (siehe app.js) - Feature fuer den
-        // Rest dieser Sitzung deaktivieren statt bei jedem weiteren Versuch
-        // erneut ins Leere zu laufen.
-        if (res.status === 429) {
-          setIsWishFeatureDisabled(true)
-          return null
-        }
-        return res.json()
-      })
-      .then((result: { cocktailIds: number[]; note: string | null } | null) => {
-        if (!result) return
-
-        // Nicht verfuegbare Cocktails rausfiltern, bevor entschieden wird, ob
-        // es "genau ein Treffer" ist - sonst koennte ein ausverkaufter
-        // Cocktail automatisch in die Bestellung wandern.
-        const availableCocktails = result.cocktailIds
-          .map((id) => cocktails.find((c) => c.id === id))
-          .filter((cocktail): cocktail is Cocktail => cocktail !== undefined)
-          .filter(
-            (cocktail) =>
-              !cocktail.ingredients.some((ingredient) => unavailableIngredients.includes(ingredient))
-          )
-
-        if (availableCocktails.length === 1) {
-          handleAddToOrder(availableCocktails[0])
-          setWishNote(result.note ?? '')
-          setTextRecommendations([])
-          return
-        }
-
-        setTextRecommendations(
-          availableCocktails.map((cocktail) => ({ cocktailId: cocktail.id, predictedRating: 0 }))
-        )
-      })
-      .catch(() => setTextRecommendations([]))
-      .finally(() => setIsTextRecommending(false))
   }
 
   const latestCompletedOrder = history[0]
@@ -354,9 +304,35 @@ function App() {
 
   const drinkMatch = useMatch('/drink/:id')
   const detailCocktail = drinkMatch
-    ? cocktails.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
+    ? menu.find((cocktail) => String(cocktail.id) === drinkMatch.params.id)
     : undefined
-  const barkeeperMatch = useMatch('/barkeeper')
+  const barkeeperMatch = useMatch('/barkeeper/*')
+
+  // Gong an der Theke bei neuen Bestellungen. Die Einstellung gilt pro
+  // Geraet (localStorage), Standard ist an.
+  const [isSoundOn, setIsSoundOn] = useState(() => localStorage.getItem('barSound') !== 'off')
+  const isBarView = isBarkeeperAuthenticated && barkeeperMatch !== null
+  useNewOrderChime({
+    orders: hasLoadedOrders ? openOrders : null,
+    enabled: isBarView && isSoundOn,
+    play: playChime,
+  })
+
+  // Browser spielen Ton erst nach einer Beruehrung der Seite; die erste
+  // Beruehrung in der Theken-Ansicht schaltet ihn frei.
+  useEffect(() => {
+    if (!isBarView) return
+    document.addEventListener('pointerdown', unlockChime, { once: true })
+    return () => document.removeEventListener('pointerdown', unlockChime)
+  }, [isBarView])
+
+  function handleToggleSound() {
+    const next = !isSoundOn
+    setIsSoundOn(next)
+    localStorage.setItem('barSound', next ? 'on' : 'off')
+    // Beim Einschalten einmal anspielen: Rueckmeldung und Freischaltung.
+    if (next) playChime()
+  }
   const isArrival = currentUser === '' && !barkeeperMatch
   // Drink-Detail soll auf einen Handy-Screen passen: der Name liegt direkt
   // auf der Skyline, und die Tabs entfallen (zurueck geht es ueber "← Karte").
@@ -367,140 +343,170 @@ function App() {
   if (isDrinkDetail) headerClassName += ' app-header-detail'
 
   return (
-    <div>
-      {/* Der Header ist die Buehne ueber der Skyline und wechselt mit der
-          Ansicht: Ankunft (noch nicht angemeldet), Drink-Detail oder die
-          normale Marke. */}
-      <header className={headerClassName}>
-        <div className="app-header-inner">
-          {isArrival ? (
-            <>
-              <span className="lift-display">▲ 5 · Dachterrasse</span>
-              <h1 className="arrival-title">
-                Über den Dächern <span>von Düsseldorf.</span>
-              </h1>
-              <p className="app-coords">51°14′ N · 6°46′ O · Etage 5</p>
-            </>
-          ) : detailCocktail ? (
-            <>
-              <Link to="/" className="back-link">
-                ← Karte
-              </Link>
-              <h1 className="drink-title">{detailCocktail.name}</h1>
-            </>
-          ) : (
-            <>
-              <h1>
-                Rooftop <span className="app-floor">5. OG</span>
-              </h1>
-              <p className="app-subtitle">Cocktails über Düsseldorf</p>
-            </>
-          )}
-        </div>
-        <Skyline className="app-skyline" />
-      </header>
-
-      {showReadyNotification && (
-        <div className="notification">
-          <p>
-            <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
-          </p>
-          <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
-            Schließen
-          </button>
-        </div>
-      )}
-
-      {isServerUnreachable && (
-        <div className="notification">
-          <p>Die Bar ist gerade nicht erreichbar. Versuch es gleich noch einmal.</p>
-          <button type="button" className="btn" onClick={() => setIsServerUnreachable(false)}>
-            Schließen
-          </button>
-        </div>
-      )}
-
-      {!isDrinkDetail && (
-        <nav className="tabs">
-          <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-            Kunde
-          </NavLink>
-          <NavLink
-            to="/barkeeper"
-            className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
-          >
-            Barkeeper
-          </NavLink>
-        </nav>
-      )}
-
-      <Routes>
-        <Route
-          path="/"
-          element={
-            currentUser === '' ? (
-              <LoginForm onLogin={setCurrentUser} />
+    <MenuContext.Provider value={menu}>
+      <div>
+        {/* Der Header ist die Buehne ueber der Skyline und wechselt mit der
+            Ansicht: Ankunft (noch nicht angemeldet), Drink-Detail oder die
+            normale Marke. */}
+        <header className={headerClassName}>
+          <div className="app-header-inner">
+            {isArrival ? (
+              <>
+                <span className="lift-display">▲ 5 · Dachterrasse</span>
+                <h1 className="arrival-title">
+                  Über den Dächern <span>von Düsseldorf.</span>
+                </h1>
+                <p className="app-coords">51°14′ N · 6°46′ O · Etage 5</p>
+              </>
+            ) : detailCocktail ? (
+              <>
+                <Link to="/" className="back-link">
+                  ← Karte
+                </Link>
+                <h1 className="drink-title">{detailCocktail.name}</h1>
+              </>
             ) : (
-              <CustomerPage
-                order={order}
-                onAddToOrder={handleAddToOrder}
-                onRemoveItem={handleRemoveItem}
-                onSubmitOrder={handleSubmitOrder}
-                hasOpenOrder={hasOpenOrder}
-                ownOpenOrder={ownOpenOrder}
-                queuePosition={ownOrderIndex + 1}
-                orderFormRef={orderFormRef}
-                queueLength={openOrders.length}
-                unavailableIngredients={unavailableIngredients}
-                history={history}
-                ratings={ratings}
-                recommendations={recommendations}
-                pendingRatingItem={pendingRatingItem}
-                onRateCocktail={handleRateCocktail}
-                onDismissRatingPrompt={handleDismissRatingPrompt}
-                textRecommendations={textRecommendations}
-                isTextRecommending={isTextRecommending}
-                onWishSubmit={handleWishSubmit}
-                wishNote={wishNote}
-                isWishFeatureDisabled={isWishFeatureDisabled}
+              <>
+                <h1>
+                  Rooftop <span className="app-floor">5. OG</span>
+                </h1>
+                <p className="app-subtitle">Cocktails über Düsseldorf</p>
+              </>
+            )}
+          </div>
+          <Skyline className="app-skyline" />
+        </header>
+
+        {showReadyNotification && (
+          <div className="notification">
+            <p>
+              <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
+            </p>
+            <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
+              Schließen
+            </button>
+          </div>
+        )}
+
+        {isServerUnreachable && (
+          <div className="notification">
+            <p>Die Bar ist gerade nicht erreichbar. Versuch es gleich noch einmal.</p>
+            <button type="button" className="btn" onClick={() => setIsServerUnreachable(false)}>
+              Schließen
+            </button>
+          </div>
+        )}
+
+        {!isDrinkDetail && (
+          <nav className="tabs">
+            <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+              Kunde
+            </NavLink>
+            <NavLink
+              to="/barkeeper"
+              className={({ isActive }) => (isActive ? 'tab active' : 'tab')}
+            >
+              Barkeeper
+            </NavLink>
+          </nav>
+        )}
+
+        <Routes>
+          <Route
+            path="/"
+            element={
+              currentUser === '' ? (
+                <LoginForm onLogin={setCurrentUser} />
+              ) : (
+                <CustomerPage
+                  order={order}
+                  onAddToOrder={handleAddToOrder}
+                  onRemoveItem={handleRemoveItem}
+                  onSubmitOrder={handleSubmitOrder}
+                  onCancelOrder={handleCancelOrder}
+                  hasOpenOrder={hasOpenOrder}
+                  ownOpenOrder={ownOpenOrder}
+                  queuePosition={ownOrderIndex + 1}
+                  orderFormRef={orderFormRef}
+                  queueLength={openOrders.length}
+                  unavailableIngredients={unavailableIngredients}
+                  history={history}
+                  ratings={ratings}
+                  recommendations={recommendations}
+                  pendingRatingItem={pendingRatingItem}
+                  onRateCocktail={rateCocktail}
+                  onDismissRatingPrompt={handleDismissRatingPrompt}
+                  textRecommendations={textRecommendations}
+                  isTextRecommending={isTextRecommending}
+                  onWishSubmit={submitWish}
+                  wishNote={wishNote}
+                  isWishFeatureDisabled={isWishFeatureDisabled}
+                />
+              )
+            }
+          />
+          <Route
+            path="/drink/:id"
+            element={
+              currentUser === '' ? (
+                <LoginForm onLogin={setCurrentUser} />
+              ) : (
+                <DrinkPage
+                  cocktail={detailCocktail}
+                  onOrder={handleOrderNow}
+                  hasOpenOrder={hasOpenOrder}
+                  queueLength={openOrders.length}
+                  unavailableIngredients={unavailableIngredients}
+                />
+              )
+            }
+          />
+          <Route
+            path="/barkeeper/karte"
+            element={
+              isBarkeeperAuthenticated ? (
+                <MenuEditorPage
+                onAdd={handleAddCocktail}
+                onUpdate={handleUpdateCocktail}
+                onRemove={handleRemoveCocktail}
               />
-            )
-          }
-        />
-        <Route
-          path="/drink/:id"
-          element={
-            currentUser === '' ? (
-              <LoginForm onLogin={setCurrentUser} />
-            ) : (
-              <DrinkPage
-                cocktail={detailCocktail}
-                onOrder={handleOrderNow}
-                hasOpenOrder={hasOpenOrder}
-                queueLength={openOrders.length}
-                unavailableIngredients={unavailableIngredients}
-              />
-            )
-          }
-        />
-        <Route
-          path="/barkeeper"
-          element={
-            isBarkeeperAuthenticated ? (
-              <BarkeeperPage
-                openOrders={openOrders}
-                onMarkAsDone={handleMarkAsDone}
-                unavailableIngredients={unavailableIngredients}
-                onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
-                onMarkIngredientAvailable={handleMarkIngredientAvailable}
-              />
-            ) : (
-              <BarkeeperLogin onLogin={handleBarkeeperLogin} />
-            )
-          }
-        />
-      </Routes>
-    </div>
+              ) : (
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+              )
+            }
+          />
+          <Route
+            path="/barkeeper/statistik"
+            element={
+              isBarkeeperAuthenticated ? (
+                <StatsPage loadStats={loadStats} liveVersion={liveVersion} />
+              ) : (
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+              )
+            }
+          />
+          <Route
+            path="/barkeeper"
+            element={
+              isBarkeeperAuthenticated ? (
+                <BarkeeperPage
+                  openOrders={openOrders}
+                  onMarkAsDone={handleMarkAsDone}
+                onStartOrder={handleStartOrder}
+                isSoundOn={isSoundOn}
+                onToggleSound={handleToggleSound}
+                  unavailableIngredients={unavailableIngredients}
+                  onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
+                  onMarkIngredientAvailable={handleMarkIngredientAvailable}
+                />
+              ) : (
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+              )
+            }
+          />
+        </Routes>
+      </div>
+    </MenuContext.Provider>
   )
 }
 

@@ -20,6 +20,8 @@ export interface Cocktail {
   description?: string
   movie: string
   recipe: Recipe
+  // Von der Theke angelegt (nicht Teil von shared/cocktails.json).
+  custom?: boolean
 }
 
 

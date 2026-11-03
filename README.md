@@ -16,9 +16,14 @@ notified as soon as their order is ready.
 - Detail page per drink (`/drink/:id`) with a recipe bar, facts, note field and direct order
 - One-click order flow with an optional note, auto-scrolls to the order form
 - One open order per guest at a time, with clear feedback if a second one is attempted
+- Guests can cancel their own open order (with a confirm step) as long as the bar has not started it; the bar sees it disappear live
+- Order status: the bar taps "Anfangen" and the guest sees live that their drink is being mixed
+- Sound alert at the bar: a short chime (plus vibration where supported) for every new order, can be switched off per device
 - Waiting panel after ordering: live queue position next to a Rheinturm light clock that shows the current time
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
+- Barkeeper can add their own drinks to the menu (`/barkeeper/karte`): name, category, movie, description, recipe with up to 12 ingredients; they show up for all guests live and can be edited or removed again (orders already placed keep the version they were ordered in). The base menu stays in `shared/cocktails.json` (changed via commit); added drinks live in the database (`custom_cocktails`, IDs from 1001)
+- Barkeeper statistics (`/barkeeper/statistik`, last 24 h or all time): drinks served, guests, open orders, average rating, most ordered and best rated cocktails, and ingredient usage in cl from the recipes as a shopping aid; updates live
 - Free-text cocktail ordering ("something bitter, no rum, without ice") powered by an LLM (Groq): a clear single match (plus any serving note like "no ice") goes straight into the order form to review and confirm; an ambiguous wish shows a pick-list instead
 - Guests can rate cocktails they've had; a "recommended for you" section suggests cocktails liked by guests with similar taste (collaborative filtering)
 - Ready notification for the guest once the barkeeper marks their order as done: the WebSocket signal makes the guest's page refetch the open orders, and when their order is no longer open an in-app banner ("Deine Bestellung ist fertig!") appears. It only shows while the page is open; there are no push notifications
@@ -28,8 +33,8 @@ notified as soon as their order is ready.
 ## Security model
 
 - **Barkeeper actions are protected on the server, not just in the UI.** The login returns a signed token (HMAC-SHA256, valid for 12 hours, key derived from `BARKEEPER_PASSWORD`), and every barkeeper route (completing orders, marking ingredients (un)available) rejects requests without a valid token. The password is compared in constant time, and failed logins are rate-limited per IP.
-- **Orders are validated on the server:** one open order per guest, name/note length limits, and order items are rebuilt from the menu, so clients can only say *which* cocktail they want.
-- **The menu lives in `shared/cocktails.json`** and is read by both the frontend and the server. The LLM prompt for free-text wishes is built from the server's copy, never from client input. Wishes are limited to 300 characters and rate-limited per IP.
+- **Orders are validated on the server:** one open order per guest, name/note length limits, and order items are rebuilt from the menu, so clients can only say *which* cocktail they want. Ratings are validated the same way, and a guest can only rate cocktails they have actually been served.
+- **The base menu lives in `shared/cocktails.json`** and is read by both the frontend and the server; drinks the barkeeper adds are stored in the database and validated on the server (known categories only, length limits, no line breaks). The LLM prompt for free-text wishes is built from the server's menu, never from guest input. Wishes are limited to 300 characters and rate-limited per IP.
 - **Guests are identified by name only, on purpose.** This is a house-bar app: anyone who knows a guest's name can see that guest's order history and ratings. There are no accounts or passwords for guests.
 
 ## Screenshots
@@ -45,22 +50,25 @@ notified as soon as their order is ready.
 | Frontend | React 19, TypeScript, Vite, React Router                        |
 | Backend  | Node.js, Express, Prisma + PostgreSQL, `ws`                     |
 | AI       | [Groq](https://groq.com) (free tier) via the OpenAI SDK, for the free-text wish feature |
-| Testing  | Vitest, Testing Library (frontend), Vitest + Supertest (backend) |
+| Testing  | Vitest, Testing Library (frontend), Vitest + Supertest (backend), Playwright (end-to-end) |
 | CI       | GitHub Actions (lint, test, build on every push)                |
 
 ## Project structure
 
 ```
 ├── src/                    React frontend (components, pages, data, tests)
+├── e2e/                    Playwright end-to-end tests (config: playwright.config.ts)
 ├── shared/cocktails.json   The menu, read by both frontend and server
 ├── server/
 │   ├── app.js              Express app + routes (importable, used by tests)
 │   ├── barkeeperAuth.js     Barkeeper token + password check + route guard
-│   ├── menu.js              Loads shared/cocktails.json for the server
+│   ├── menu.js              Base menu (shared/cocktails.json) + drinks added by the barkeeper
+│   ├── cocktailInput.js     Validates a new drink from the barkeeper form
 │   ├── index.js             Entry point: starts the HTTP + WebSocket servers
 │   ├── prisma.js            Prisma Client singleton
 │   ├── prisma/schema.prisma Database schema + migrations
 │   ├── recommendations.js   Collaborative filtering (ratings → suggestions)
+│   ├── stats.js             Barkeeper statistics (served drinks, ratings, ingredient usage)
 │   ├── groq.js               Free-text wish → cocktail match, via Groq
 │   ├── app.test.js          Backend API tests
 │   ├── Dockerfile            Backend container image
@@ -153,7 +161,15 @@ was loaded from.
 ```bash
 npm test          # frontend component tests (Vitest + Testing Library), from the project root
 cd server && npm test   # backend API tests (Vitest + Supertest)
+npm run test:e2e  # end-to-end test in a real browser (Playwright), from the project root
 ```
+
+The end-to-end test starts its own backend (port 3101) and frontend (port
+5174) and plays the whole flow across two browsers: a guest orders, the
+barkeeper sees the order live and marks it done, the guest gets the ready
+notification and rates the drink. It needs `DATABASE_URL` set to a migrated
+database (same as the backend tests) and a Playwright browser
+(`npx playwright install chromium` once).
 
 Backend tests run against the local Postgres from `docker-compose.yml` and
 clear the `orders`/`unavailable_ingredients` tables before each test, so
@@ -170,7 +186,8 @@ cd server && npm run lint   # backend
 
 Every push runs `.github/workflows/ci.yml`, which lints, tests, and builds
 both the frontend and backend in parallel jobs (the backend job runs against
-a Postgres service container).
+a Postgres service container), plus a third job for the Playwright
+end-to-end test.
 
 ## Deployment
 
