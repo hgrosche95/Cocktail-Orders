@@ -2,12 +2,12 @@ export interface CategoryTheme {
   color: string
 }
 
-// Ein Farbton pro Kategorie - im Rooftop-Design nur noch als kleiner
-// Leuchtpunkt an Filter-Chips und Rezeptkarten, nicht mehr als Flaeche.
+// Ein Farbton pro Kategorie: fuellt das Glas auf der Karte und faerbt
+// Ueberschriften und Filter. Das Signalorange bleibt dem Bestellen vorbehalten.
 const categoryThemes: Record<string, CategoryTheme> = {
   'Sauer & Erfrischend': { color: '#c4e04a' },
   'Kräftig & Herb': { color: '#d98a4e' },
-  Aperitivos: { color: '#ff7a45' },
+  Aperitivos: { color: '#ef5350' },
   'Süß & Fruchtig': { color: '#ff86b0' },
   'Cremig & Kaffee': { color: '#d9c6ad' },
   Puristisch: { color: '#8fd3f0' },

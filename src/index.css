@@ -788,17 +788,21 @@ p {
   margin-bottom: 26px;
 }
 
-.category-dot {
-  width: 9px;
-  height: 9px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--cat-color, var(--accent));
-  box-shadow: 0 0 10px var(--cat-color, var(--accent));
+/* Horizontlinie der Skyline als Trenner: laeuft in der Kategoriefarbe aus */
+.cocktail-category > h2::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cat-color, var(--accent-2)), transparent);
+}
+
+.cocktail-category > h2 {
+  color: color-mix(in srgb, var(--cat-color, var(--text-h)) 45%, var(--text-h));
 }
 
 .category-count {
-  margin-left: auto;
+  order: 2;
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 400;
@@ -817,20 +821,40 @@ p {
 
 .cocktail-card {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   margin-bottom: 0;
-  padding: 14px 16px;
+  padding: 14px 12px 14px 14px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(120px 100px at 30px 50%, color-mix(in srgb, var(--cat-color, var(--accent)) 16%, transparent), transparent),
+    var(--card-bg);
   transition: border-color 0.2s ease;
 }
 
-.cocktail-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+/* Nur mit echter Maus: auf Touch bliebe der Hover nach dem Tippen haengen */
+@media (hover: hover) {
+  .cocktail-card:hover {
+    border-color: color-mix(in srgb, var(--cat-color, var(--accent)) 60%, transparent);
+  }
+
+  .cocktail-card-body:hover h3 {
+    color: var(--accent-2);
+  }
+
+  .add-button:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+  }
 }
 
 .cocktail-card-body {
-  display: block;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
   color: inherit;
   text-decoration: none;
   border-radius: 8px;
@@ -841,14 +865,34 @@ p {
   outline-offset: 4px;
 }
 
-.cocktail-card h3 {
-  font-size: 25px;
-  margin-bottom: 6px;
-  transition: color 0.15s ease;
+.drink-glass {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.cocktail-card-body:hover h3 {
-  color: var(--accent-2);
+.drink-glass-layer {
+  fill: var(--cat-color, var(--accent-2));
+}
+
+.drink-glass-ice {
+  fill: rgba(255, 255, 255, 0.22);
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 0.6;
+}
+
+.drink-glass-outline {
+  fill: none;
+  stroke: rgba(243, 239, 232, 0.72);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.3;
+}
+
+.cocktail-card h3 {
+  font-size: 25px;
+  margin-bottom: 2px;
+  transition: color 0.15s ease;
 }
 
 .cocktail-ingredient-list {
@@ -856,7 +900,7 @@ p {
   display: flex;
   flex-wrap: wrap;
   padding: 0;
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 14px;
   color: #cfcac2;
 }
@@ -866,20 +910,28 @@ p {
 .cocktail-ingredient:not(:last-child)::after {
   content: '·';
   margin: 0 6px;
-  color: var(--accent);
+  color: var(--cat-color, var(--accent-2));
 }
 
 .cocktail-description {
-  font-size: 15px;
-  line-height: 1.45;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
   color: var(--text);
-  margin-bottom: 6px;
 }
 
+/* Der Film ist der Aufhaenger der Karte, deshalb direkt unter dem Namen */
 .cocktail-movie {
-  font-size: 13px;
-  color: #7d838e;
-  margin: 0;
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--cat-color, var(--text-h)) 35%, var(--text-h));
 }
 
 .add-button {
@@ -887,18 +939,26 @@ p {
   height: 44px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.22);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   background: none;
   color: var(--text-h);
-  font-size: 22px;
-  line-height: 1;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
-.add-button:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+.add-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.add-button path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
 }
 
 .add-button:active {
