@@ -1,4 +1,7 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import DrinkGlass from './DrinkGlass'
+import { getCategoryTheme } from '../data/categories'
 import type { Cocktail } from '../data/cocktails'
 
 interface CocktailCardProps {
@@ -10,25 +13,31 @@ interface CocktailCardProps {
 // auf den Rest der Karte oeffnet die Detailansicht mit Rezept und Bestellknopf.
 function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
   return (
-    <li className="card cocktail-card">
+    <li
+      className="card cocktail-card"
+      style={{ '--cat-color': getCategoryTheme(cocktail.category).color } as CSSProperties}
+    >
       <Link
         to={`/drink/${cocktail.id}`}
         className="cocktail-card-body"
         aria-label={`${cocktail.name} ansehen`}
       >
-        <h3>{cocktail.name}</h3>
-        <ul className="cocktail-ingredient-list">
-          {cocktail.ingredients.map((ingredient) => (
-            <li key={ingredient} className="cocktail-ingredient">
-              {ingredient}
-            </li>
-          ))}
-        </ul>
-        {cocktail.description && (
-          <p className="cocktail-description">{cocktail.description}</p>
-        )}
-        {/* Eigene Drinks der Theke koennen ohne Film sein. */}
-        {cocktail.movie && <p className="cocktail-movie">aus „{cocktail.movie}“</p>}
+        <DrinkGlass cocktail={cocktail} />
+        <div className="cocktail-card-text">
+          <h3>{cocktail.name}</h3>
+          {/* Eigene Drinks der Theke koennen ohne Film sein. */}
+          {cocktail.movie && <p className="cocktail-movie">aus „{cocktail.movie}“</p>}
+          <ul className="cocktail-ingredient-list">
+            {cocktail.ingredients.map((ingredient) => (
+              <li key={ingredient} className="cocktail-ingredient">
+                {ingredient}
+              </li>
+            ))}
+          </ul>
+          {cocktail.description && (
+            <p className="cocktail-description">{cocktail.description}</p>
+          )}
+        </div>
       </Link>
       <button
         type="button"
@@ -36,7 +45,9 @@ function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
         onClick={() => onAddToOrder(cocktail)}
         aria-label={`${cocktail.name} bestellen`}
       >
-        +
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M8 2.5v11M2.5 8h11" />
+        </svg>
       </button>
     </li>
   )

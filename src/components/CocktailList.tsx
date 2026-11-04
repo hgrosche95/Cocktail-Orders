@@ -85,7 +85,6 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
         return (
           <section key={category} className="cocktail-category" style={categoryStyle(theme.color)}>
             <h2>
-              <span className="category-dot" aria-hidden="true" />
               {category}
               <span className="category-count">{items.length}</span>
             </h2>
