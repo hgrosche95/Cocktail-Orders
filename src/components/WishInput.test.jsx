@@ -9,7 +9,7 @@ describe('WishInput', () => {
     const onSubmit = vi.fn()
     render(<WishInput onSubmit={onSubmit} isLoading={false} />)
 
-    await user.type(screen.getByPlaceholderText(/Fruchtiges/), 'etwas Bitteres, kein Rum')
+    await user.type(screen.getByPlaceholderText(/fruchtig/), 'etwas Bitteres, kein Rum')
     await user.click(screen.getByRole('button', { name: 'Vorschläge finden' }))
 
     expect(onSubmit).toHaveBeenCalledWith('etwas Bitteres, kein Rum')
@@ -20,7 +20,7 @@ describe('WishInput', () => {
     const onSubmit = vi.fn()
     render(<WishInput onSubmit={onSubmit} isLoading={false} />)
 
-    await user.type(screen.getByPlaceholderText(/Fruchtiges/), '   ')
+    await user.type(screen.getByPlaceholderText(/fruchtig/), '   ')
     await user.click(screen.getByRole('button', { name: 'Vorschläge finden' }))
 
     expect(onSubmit).not.toHaveBeenCalled()
@@ -29,15 +29,15 @@ describe('WishInput', () => {
   test('shows a loading state and disables the button while searching', () => {
     render(<WishInput onSubmit={() => {}} isLoading={true} />)
 
-    const button = screen.getByRole('button', { name: 'Wird gesucht …' })
+    const button = screen.getByRole('button', { name: 'Sucht …' })
     expect(button).toBeDisabled()
   })
 
   test('shows a hint and disables input + button once the feature is disabled', () => {
     render(<WishInput onSubmit={() => {}} isLoading={false} isDisabled={true} />)
 
-    expect(screen.getByPlaceholderText(/Fruchtiges/)).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Gerade nicht verfügbar' })).toBeDisabled()
+    expect(screen.getByPlaceholderText(/fruchtig/)).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Vorschläge finden' })).toBeDisabled()
     expect(screen.getByText(/nutz einfach die Karte/)).toBeInTheDocument()
   })
 

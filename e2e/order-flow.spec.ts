@@ -27,6 +27,7 @@ test('guest order reaches the bar live and the guest is notified when it is done
   await guest.getByLabel('Wer kommt hoch?').fill(guestName)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
   await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: /Anmerkung hinzufügen/ }).click()
   await guest.getByLabel('Anmerkung an die Theke (optional)').fill('ohne Zimt')
   await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
   await expect(guest.getByText(/Du bist dran|vor dir/)).toBeVisible()

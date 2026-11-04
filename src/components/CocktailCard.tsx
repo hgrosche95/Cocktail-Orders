@@ -6,8 +6,8 @@ interface CocktailCardProps {
   onAddToOrder: (cocktail: Cocktail) => void
 }
 
-// Zwei Ziele pro Karte: "+" merkt den Drink direkt vor, ein Klick auf den
-// Rest der Karte oeffnet die Detailansicht mit Rezept und Bestellknopf.
+// Zwei Ziele pro Karte: "+" merkt den Drink in der Leiste unten vor, ein Klick
+// auf den Rest der Karte oeffnet die Detailansicht mit Rezept und Bestellknopf.
 function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
   return (
     <li className="card cocktail-card">

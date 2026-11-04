@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMenu } from '../data/menu'
 import type { Cocktail } from '../data/cocktails'
@@ -39,6 +39,15 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
   const categoryNames = Array.from(categories.keys())
 
   const [selectedCategory, setSelectedCategory] = useState('Alle')
+  const listRef = useRef<HTMLDivElement>(null)
+
+  // Die Filterleiste klebt am oberen Rand: wer tief in der Karte filtert,
+  // soll am Anfang der gefilterten Liste landen, nicht irgendwo darin.
+  function selectCategory(category: string) {
+    setSelectedCategory(category)
+    const listTop = listRef.current?.getBoundingClientRect().top ?? 0
+    if (listTop < 0) window.scrollBy({ top: listTop })
+  }
 
   const visibleCategories: Map<string, Cocktail[]> =
     selectedCategory === 'Alle'
@@ -46,12 +55,12 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
       : new Map([[selectedCategory, categories.get(selectedCategory) ?? []]])
 
   return (
-    <div>
+    <div ref={listRef}>
       <div className="category-filter">
         <button
           type="button"
           className={selectedCategory === 'Alle' ? 'filter-chip active' : 'filter-chip'}
-          onClick={() => setSelectedCategory('Alle')}
+          onClick={() => selectCategory('Alle')}
         >
           Alle
         </button>
@@ -63,7 +72,7 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
               type="button"
               className={selectedCategory === category ? 'filter-chip active' : 'filter-chip'}
               style={categoryStyle(theme.color)}
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => selectCategory(category)}
             >
               {category}
             </button>
