@@ -1,7 +1,6 @@
-import type { RefObject } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CocktailList from '../components/CocktailList'
-import OrderSummary from '../components/OrderSummary'
-import OrderForm from '../components/OrderForm'
+import OrderBar from '../components/OrderBar'
 import RatingPrompt from '../components/RatingPrompt'
 import OrderHistory from '../components/OrderHistory'
 import Recommendations from '../components/Recommendations'
@@ -20,7 +19,6 @@ interface CustomerPageProps {
   hasOpenOrder: boolean
   ownOpenOrder: SubmittedOrder | null
   queuePosition: number
-  orderFormRef: RefObject<HTMLDivElement | null>
   queueLength: number
   unavailableIngredients: string[]
   history: SubmittedOrder[]
@@ -45,7 +43,6 @@ function CustomerPage({
   hasOpenOrder,
   ownOpenOrder,
   queuePosition,
-  orderFormRef,
   queueLength,
   unavailableIngredients,
   history,
@@ -60,6 +57,24 @@ function CustomerPage({
   wishNote,
   isWishFeatureDisabled,
 }: CustomerPageProps) {
+  const waitingPanelRef = useRef<HTMLDivElement>(null)
+  const [isWaitingPanelVisible, setIsWaitingPanelVisible] = useState(false)
+
+  // Die Leiste unten zeigt den Platz in der Schlange nur, solange die grosse
+  // Warteansicht aus dem Bild gescrollt ist. Pruefung auf den Typ, weil jsdom
+  // in den Tests keinen IntersectionObserver kennt.
+  useEffect(() => {
+    const panel = waitingPanelRef.current
+    if (!panel || typeof IntersectionObserver === 'undefined') return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsWaitingPanelVisible(entry.isIntersecting),
+      { threshold: 0.25 }
+    )
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [hasOpenOrder])
+
   return (
     <>
       <div className="queue-row">
@@ -71,12 +86,14 @@ function CustomerPage({
       </div>
 
       {ownOpenOrder && (
-        <WaitingPanel
-          order={ownOpenOrder}
-          position={queuePosition}
-          queueLength={queueLength}
-          onCancel={() => onCancelOrder(ownOpenOrder.orderId)}
-        />
+        <div ref={waitingPanelRef}>
+          <WaitingPanel
+            order={ownOpenOrder}
+            position={queuePosition}
+            queueLength={queueLength}
+            onCancel={() => onCancelOrder(ownOpenOrder.orderId)}
+          />
+        </div>
       )}
 
       {pendingRatingItem && (
@@ -109,17 +126,22 @@ function CustomerPage({
         onAddToOrder={onAddToOrder}
         unavailableIngredients={unavailableIngredients}
       />
-      <OrderSummary order={order} onRemoveItem={onRemoveItem} />
-      <div ref={orderFormRef}>
-        <OrderForm
-          order={order}
-          onSubmitOrder={onSubmitOrder}
-          hasOpenOrder={hasOpenOrder}
-          initialNote={wishNote}
-        />
-      </div>
 
       <OrderHistory history={history} ratings={ratings} onRate={onRateCocktail} />
+
+      <OrderBar
+        order={order}
+        onSubmitOrder={onSubmitOrder}
+        onRemoveItem={onRemoveItem}
+        initialNote={wishNote}
+        ownOpenOrder={ownOpenOrder}
+        queuePosition={queuePosition}
+        queueLength={queueLength}
+        isWaitingPanelVisible={isWaitingPanelVisible}
+        onShowWaitingPanel={() =>
+          waitingPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      />
     </>
   )
 }

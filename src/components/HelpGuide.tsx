@@ -41,7 +41,7 @@ function HelpGuide() {
 
             <h3>Bestellen</h3>
             <p>
-              Cocktail aus der Karte wählen und auf „+" tippen. Optional eine
+              Cocktail aus der Karte wählen und auf „+" tippen: Er landet in der Leiste unten. Dort optional eine
               Anmerkung hinzufügen (z.&nbsp;B. „wenig Eis") und abschicken. Sobald der
               Barkeeper deinen Cocktail zubereitet hat, bekommst du eine Benachrichtigung.
             </p>

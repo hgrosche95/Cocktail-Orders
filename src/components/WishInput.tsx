@@ -17,20 +17,25 @@ function WishInput({ onSubmit, isLoading, isDisabled = false }: WishInputProps) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card">
+    <form onSubmit={handleSubmit} className="card wish-form">
       <label className="field">
         Worauf hast du Lust?
         <input
           type="text"
           value={text}
           onChange={(event: ChangeEvent<HTMLInputElement>) => setText(event.target.value)}
-          placeholder="z. B. etwas Fruchtiges, nicht zu stark"
+          placeholder="z. B. fruchtig &amp; leicht"
           maxLength={300}
           disabled={isDisabled}
         />
       </label>
-      <button type="submit" className="btn btn-primary btn-block" disabled={isLoading || isDisabled}>
-        {isDisabled ? 'Gerade nicht verfügbar' : isLoading ? 'Wird gesucht …' : 'Vorschläge finden'}
+      <button
+        type="submit"
+        className="btn btn-ghost wish-submit"
+        aria-label={isLoading ? undefined : 'Vorschläge finden'}
+        disabled={isLoading || isDisabled}
+      >
+        {isLoading ? 'Sucht …' : 'Finden'}
       </button>
       {isDisabled && (
         <p className="error-message">Gerade nicht verfügbar — nutz einfach die Karte.</p>

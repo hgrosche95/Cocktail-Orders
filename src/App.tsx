@@ -119,12 +119,9 @@ function App() {
     }
   }, [currentUser])
 
-  const orderFormRef = useRef<HTMLDivElement>(null)
-
   function handleAddToOrder(cocktail: Cocktail) {
     const orderItem: OrderItem = { ...cocktail, orderId: generateId() }
     setOrder([orderItem])
-    orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const { textRecommendations, isTextRecommending, wishNote, isWishFeatureDisabled, submitWish } =
@@ -341,6 +338,7 @@ function App() {
   let headerClassName = 'app-header'
   if (isArrival) headerClassName += ' app-header-arrival'
   if (isDrinkDetail) headerClassName += ' app-header-detail'
+  if (!isArrival && !isDrinkDetail) headerClassName += ' app-header-compact'
 
   return (
     <MenuContext.Provider value={menu}>
@@ -427,7 +425,6 @@ function App() {
                   hasOpenOrder={hasOpenOrder}
                   ownOpenOrder={ownOpenOrder}
                   queuePosition={ownOrderIndex + 1}
-                  orderFormRef={orderFormRef}
                   queueLength={openOrders.length}
                   unavailableIngredients={unavailableIngredients}
                   history={history}
