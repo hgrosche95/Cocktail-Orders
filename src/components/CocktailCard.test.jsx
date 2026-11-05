@@ -12,11 +12,10 @@ const cocktail = {
   name: 'Mojito',
   ingredients: ['Rum', 'Zucker', 'Limette', 'Minze', 'Soda'],
   description: 'Ein erfrischender Drink.',
-  movie: 'Die Another Day',
 }
 
 describe('CocktailCard', () => {
-  test('renders name, ingredients, description and movie', () => {
+  test('renders name, ingredients and description', () => {
     renderWithRouter(<CocktailCard cocktail={cocktail} onAddToOrder={() => {}} />)
 
     expect(screen.getByText('Mojito')).toBeInTheDocument()
@@ -24,13 +23,6 @@ describe('CocktailCard', () => {
       expect(screen.getByText(ingredient)).toBeInTheDocument()
     }
     expect(screen.getByText('Ein erfrischender Drink.')).toBeInTheDocument()
-    expect(screen.getByText(/Die Another Day/)).toBeInTheDocument()
-  })
-
-  test('does not render a movie line for a drink without movie', () => {
-    renderWithRouter(<CocktailCard cocktail={{ ...cocktail, movie: '' }} onAddToOrder={() => {}} />)
-
-    expect(screen.queryByText(/aus „/)).not.toBeInTheDocument()
   })
 
   test('does not render a description when there is none', () => {
@@ -46,7 +38,7 @@ describe('CocktailCard', () => {
     const onAddToOrder = vi.fn()
     renderWithRouter(<CocktailCard cocktail={cocktail} onAddToOrder={onAddToOrder} />)
 
-    await user.click(screen.getByRole('button', { name: 'Mojito bestellen' }))
+    await user.click(screen.getByRole('button', { name: 'Mojito vormerken' }))
 
     expect(onAddToOrder).toHaveBeenCalledWith(cocktail)
   })

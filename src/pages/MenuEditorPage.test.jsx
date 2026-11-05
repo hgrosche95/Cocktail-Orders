@@ -11,7 +11,6 @@ const customDrink = {
   name: 'Rooftop Tiki',
   category: 'Süß & Fruchtig',
   ingredients: ['Rum', 'Ananassaft'],
-  movie: '',
   recipe: { ingredients: [{ name: 'Rum', amountCl: 5 }, { name: 'Ananassaft' }], ice: '', servedWithIceCubes: false },
   custom: true,
 }
@@ -57,7 +56,6 @@ describe('MenuEditorPage', () => {
     expect(onAdd).toHaveBeenCalledWith({
       name: 'Rooftop Tiki',
       category: 'Süß & Fruchtig',
-      movie: '',
       description: '',
       recipe: {
         ingredients: [{ name: 'Rum', amountCl: 4.5 }, { name: 'Minze', note: 'zum Garnieren' }],
@@ -119,7 +117,7 @@ describe('MenuEditorPage', () => {
   })
 
   describe('editing', () => {
-    const withCustom = [...baseCocktails, { ...customDrink, movie: 'Hausrezept', description: 'Fruchtig.' }]
+    const withCustom = [...baseCocktails, { ...customDrink, description: 'Fruchtig.' }]
 
     test('loads the drink into the form, including amounts with a comma', async () => {
       renderPage({ menu: [...baseCocktails, { ...customDrink, recipe: { ...customDrink.recipe, ingredients: [{ name: 'Rum', amountCl: 4.5 }, { name: 'Ananassaft', note: 'frisch' }] } }] })
@@ -147,7 +145,6 @@ describe('MenuEditorPage', () => {
       expect(onUpdate).toHaveBeenCalledWith(1001, {
         name: 'Tiki Deluxe',
         category: 'Süß & Fruchtig',
-        movie: 'Hausrezept',
         description: 'Fruchtig.',
         recipe: { ingredients: [{ name: 'Rum', amountCl: 5 }, { name: 'Ananassaft' }], ice: '', servedWithIceCubes: false },
       })

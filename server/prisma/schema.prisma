@@ -59,7 +59,7 @@ model Rating {
 model CustomCocktail {
   id        Int      @id @default(autoincrement())
   name      String   @unique
-  // Kategorie, Film, Beschreibung, Rezept - dieselbe Form wie ein Eintrag
+  // Kategorie, Beschreibung, Rezept - dieselbe Form wie ein Eintrag
   // in shared/cocktails.json (ohne id, name und die flache Zutatenliste).
   data      Json
   createdAt DateTime @default(now())

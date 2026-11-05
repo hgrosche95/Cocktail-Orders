@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import RecipeBar from '../components/RecipeBar'
@@ -32,6 +32,11 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
   const [isSending, setIsSending] = useState(false)
   const [failedResult, setFailedResult] = useState<OrderResult | null>(null)
   const navigate = useNavigate()
+
+  // Die Karte kann weit unten gescrollt gewesen sein.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
 
   if (!cocktail) {
     return (
@@ -70,10 +75,7 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
 
   return (
     <form className="drink-page" onSubmit={handleSubmit}>
-      <p className="drink-meta">
-        {cocktail.category}
-        {cocktail.movie && ` · aus „${cocktail.movie}“`}
-      </p>
+      <p className="drink-meta">{cocktail.category}</p>
       {cocktail.description && <p className="drink-description">{cocktail.description}</p>}
 
       <RecipeBar recipe={cocktail.recipe} />

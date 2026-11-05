@@ -667,7 +667,6 @@ describe('menu', () => {
   const tiki = {
     name: 'Rooftop Tiki',
     category: 'Süß & Fruchtig',
-    movie: 'Hausrezept',
     description: 'Fruchtig, mit Rum.',
     recipe: {
       ingredients: [
@@ -746,10 +745,10 @@ describe('menu', () => {
     expect(created.status).toBe(201)
     expect(created.body).toMatchObject({
       name: 'Rooftop Tiki',
-      movie: '',
       recipe: { ingredients: [{ name: 'Rum' }], ice: '', servedWithIceCubes: false },
     })
     expect(created.body).not.toHaveProperty('description')
+    expect(created.body).not.toHaveProperty('movie')
   })
 
   test('is barkeeper-only', async () => {

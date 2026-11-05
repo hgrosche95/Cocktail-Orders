@@ -25,8 +25,6 @@ function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
         <DrinkGlass cocktail={cocktail} />
         <div className="cocktail-card-text">
           <h3>{cocktail.name}</h3>
-          {/* Eigene Drinks der Theke koennen ohne Film sein. */}
-          {cocktail.movie && <p className="cocktail-movie">aus „{cocktail.movie}“</p>}
           <ul className="cocktail-ingredient-list">
             {cocktail.ingredients.map((ingredient) => (
               <li key={ingredient} className="cocktail-ingredient">
@@ -43,7 +41,7 @@ function CocktailCard({ cocktail, onAddToOrder }: CocktailCardProps) {
         type="button"
         className="add-button"
         onClick={() => onAddToOrder(cocktail)}
-        aria-label={`${cocktail.name} bestellen`}
+        aria-label={`${cocktail.name} vormerken`}
       >
         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path d="M8 2.5v11M2.5 8h11" />

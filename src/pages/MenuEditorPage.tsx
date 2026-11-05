@@ -9,7 +9,6 @@ import type { Cocktail, RecipeIngredient } from '../data/cocktails'
 export interface NewCocktail {
   name: string
   category: string
-  movie: string
   description: string
   recipe: {
     ingredients: RecipeIngredient[]
@@ -58,7 +57,6 @@ function MenuEditorPage({ onAdd, onUpdate, onRemove }: MenuEditorPageProps) {
 
   const [name, setName] = useState('')
   const [category, setCategory] = useState(categories[0] ?? '')
-  const [movie, setMovie] = useState('')
   const [description, setDescription] = useState('')
   const [rows, setRows] = useState<IngredientRow[]>([emptyRow()])
   const [ice, setIce] = useState('')
@@ -78,7 +76,6 @@ function MenuEditorPage({ onAdd, onUpdate, onRemove }: MenuEditorPageProps) {
     setEditingId(null)
     setName('')
     setCategory(categories[0] ?? '')
-    setMovie('')
     setDescription('')
     setRows([emptyRow()])
     setIce('')
@@ -89,7 +86,6 @@ function MenuEditorPage({ onAdd, onUpdate, onRemove }: MenuEditorPageProps) {
     setEditingId(cocktail.id)
     setName(cocktail.name)
     setCategory(cocktail.category)
-    setMovie(cocktail.movie ?? '')
     setDescription(cocktail.description ?? '')
     setRows(
       cocktail.recipe.ingredients.map((ingredient) => ({
@@ -149,7 +145,6 @@ function MenuEditorPage({ onAdd, onUpdate, onRemove }: MenuEditorPageProps) {
     const input: NewCocktail = {
       name: cocktailName,
       category,
-      movie,
       description,
       recipe: { ingredients, ice, servedWithIceCubes },
     }
@@ -266,11 +261,6 @@ function MenuEditorPage({ onAdd, onUpdate, onRemove }: MenuEditorPageProps) {
               </option>
             ))}
           </select>
-        </label>
-
-        <label className="field">
-          Film (optional)
-          <input value={movie} onChange={(e) => setMovie(e.target.value)} maxLength={80} />
         </label>
 
         <label className="field">

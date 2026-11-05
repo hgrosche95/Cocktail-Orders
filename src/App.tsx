@@ -409,7 +409,8 @@ function App() {
           </div>
         )}
 
-        {!isDrinkDetail && (
+        {/* Gaeste brauchen keine Tabs: der Weg zur Theke steht unten im Fuss. */}
+        {barkeeperMatch && (
           <nav className="tabs">
             <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
               Gast
@@ -516,6 +517,12 @@ function App() {
             }
           />
         </Routes>
+
+        {!barkeeperMatch && !isDrinkDetail && (
+          <footer className="app-footer">
+            <Link to="/barkeeper">Zur Theke</Link>
+          </footer>
+        )}
       </div>
     </MenuContext.Provider>
   )

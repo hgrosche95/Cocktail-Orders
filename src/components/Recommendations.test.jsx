@@ -64,7 +64,7 @@ describe('Recommendations', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: 'Negroni bestellen' }))
+    await user.click(screen.getByRole('button', { name: 'Negroni vormerken' }))
 
     expect(onAddToOrder).toHaveBeenCalledWith(expect.objectContaining({ id: 16, name: 'Negroni' }))
   })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import CocktailList from '../components/CocktailList'
 import OrderBar from '../components/OrderBar'
 import RatingPrompt from '../components/RatingPrompt'
@@ -35,6 +35,8 @@ interface CustomerPageProps {
   isWishFeatureDisabled: boolean
 }
 
+const SCROLL_STORAGE_KEY = 'menuScroll'
+
 function CustomerPage({
   order,
   onAddToOrder,
@@ -58,6 +60,18 @@ function CustomerPage({
   wishNote,
   isWishFeatureDisabled,
 }: CustomerPageProps) {
+  // Zurueck aus dem Drink-Detail: wieder dort landen, wo der Gast war. Vor dem
+  // Zeichnen, sonst springt die Seite sichtbar. Ein Neuladen raeumt der Browser
+  // selbst auf, dabei laeuft das Aufraeumen hier nicht.
+  useLayoutEffect(() => {
+    const savedScroll = sessionStorage.getItem(SCROLL_STORAGE_KEY)
+    if (savedScroll !== null) {
+      sessionStorage.removeItem(SCROLL_STORAGE_KEY)
+      window.scrollTo(0, Number(savedScroll))
+    }
+    return () => sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY))
+  }, [])
+
   const waitingPanelRef = useRef<HTMLDivElement>(null)
   const [isWaitingPanelVisible, setIsWaitingPanelVisible] = useState(false)
 

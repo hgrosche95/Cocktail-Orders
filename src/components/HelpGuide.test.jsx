@@ -16,6 +16,23 @@ describe('HelpGuide', () => {
     expect(screen.getByText(/einen Negroni, aber ohne Eis/)).toBeInTheDocument()
   })
 
+  test('is announced as a dialog, moves focus into it and back afterwards', async () => {
+    const user = userEvent.setup()
+    render(<HelpGuide />)
+    const openButton = screen.getByRole('button', { name: 'Hilfe anzeigen' })
+
+    await user.click(openButton)
+    expect(screen.getByRole('dialog', { name: "So funktioniert's" })).toBeInTheDocument()
+    const closeButton = screen.getByRole('button', { name: 'Schließen' })
+    expect(closeButton).toHaveFocus()
+
+    await user.tab()
+    expect(closeButton).toHaveFocus()
+
+    await user.keyboard('{Escape}')
+    expect(openButton).toHaveFocus()
+  })
+
   test('closes when the close button is clicked', async () => {
     const user = userEvent.setup()
     render(<HelpGuide />)
