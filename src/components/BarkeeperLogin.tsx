@@ -24,7 +24,7 @@ function BarkeeperLogin({ onLogin }: BarkeeperLoginProps) {
   return (
     <form onSubmit={handleSubmit} className="card">
       <label className="field">
-        Barkeeper-Passwort:
+        Barkeeper-Passwort
         <input
           type="password"
           value={password}

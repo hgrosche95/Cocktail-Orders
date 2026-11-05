@@ -70,7 +70,7 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
           <dd>{preparationLabel(cocktail.recipe.ice)}</dd>
         </div>
         <div className="card">
-          <dt>Im Glas</dt>
+          <dt>Serviert</dt>
           <dd>{cocktail.recipe.servedWithIceCubes ? 'Mit Eis' : 'Ohne Eis'}</dd>
         </div>
         <div className="card">
@@ -96,9 +96,12 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
         disabled={hasOpenOrder || isUnavailable}
       >
         <span>{isUnavailable ? 'Heute leider aus' : 'Bestellen'}</span>
-        <span className="btn-meta">
-          {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} vor dir
-        </span>
+        {/* Mit offener Bestellung zaehlt die Schlange den Gast selbst mit. */}
+        {!hasOpenOrder && (
+          <span className="btn-meta">
+            {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} vor dir
+          </span>
+        )}
       </button>
       {hasOpenOrder && (
         <p className="error-message">Du hast bereits eine offene Bestellung an der Theke.</p>
