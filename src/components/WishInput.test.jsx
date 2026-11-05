@@ -38,7 +38,7 @@ describe('WishInput', () => {
 
     expect(screen.getByPlaceholderText(/fruchtig/)).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Vorschläge finden' })).toBeDisabled()
-    expect(screen.getByText(/nutz einfach die Karte/)).toBeInTheDocument()
+    expect(screen.getByText(/Nutz einfach die Karte/)).toBeInTheDocument()
   })
 
   test('does not call onSubmit while disabled, even on a direct form submit', () => {
