@@ -69,7 +69,20 @@ function CustomerPage({
       sessionStorage.removeItem(SCROLL_STORAGE_KEY)
       window.scrollTo(0, Number(savedScroll))
     }
-    return () => sessionStorage.setItem(SCROLL_STORAGE_KEY, String(window.scrollY))
+
+    // Beim Scrollen mitschreiben statt beim Verlassen lesen: dann ist der
+    // Header schon der hoehere des Details, und der Browser hat die Position
+    // bereits um den Unterschied verschoben.
+    let lastScroll = window.scrollY
+    function rememberScroll() {
+      lastScroll = window.scrollY
+    }
+    window.addEventListener('scroll', rememberScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', rememberScroll)
+      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(lastScroll))
+    }
   }, [])
 
   const waitingPanelRef = useRef<HTMLDivElement>(null)
