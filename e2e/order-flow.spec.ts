@@ -40,8 +40,9 @@ test('guest order reaches the bar live and the guest is notified when it is done
   await barOrder.getByRole('button', { name: 'Erledigt' }).click()
   await expect(barOrder).toHaveCount(0)
 
-  // Gast bekommt die Fertig-Meldung und den Bewertungs-Prompt.
-  await expect(guest.getByText('Deine Bestellung ist fertig!')).toBeVisible()
+  // Gast bekommt die Fertig-Meldung, danach den Bewertungs-Prompt.
+  await expect(guest.getByRole('heading', { name: 'Cable Car ist fertig' })).toBeVisible()
+  await guest.getByRole('button', { name: 'Alles klar' }).click()
   const ratingPrompt = guest.locator('.rating-prompt')
   await expect(ratingPrompt).toContainText('Cable Car')
   await ratingPrompt.getByRole('button', { name: '5 von 5 Sternen' }).click()
@@ -100,7 +101,7 @@ test('a guest can cancel their open order, the bar sees it disappear live', asyn
   await expect(guest.locator('.waiting-panel')).toHaveCount(0)
   await expect(barOrder).toHaveCount(0)
   // Ein Storno ist keine fertige Bestellung.
-  await expect(guest.getByText('Deine Bestellung ist fertig!')).toHaveCount(0)
+  await expect(guest.getByText(/ ist fertig$/)).toHaveCount(0)
   await expect(guest.locator('.rating-prompt')).toHaveCount(0)
 
   // Danach kann der Gast neu bestellen.
@@ -177,7 +178,7 @@ test('the bar adds a drink, guests see it live and can order it, then it is remo
     await expect(barOrder).toContainText(drinkName)
     await expect(barOrder).toContainText('Ananassaft')
     await barOrder.getByRole('button', { name: 'Erledigt' }).click()
-    await expect(guest.getByText('Deine Bestellung ist fertig!')).toBeVisible()
+    await expect(guest.getByRole('heading', { name: `${drinkName} ist fertig` })).toBeVisible()
   } finally {
     // Drink wieder entfernen, die Datenbank wird nicht geleert.
     await bar.goto('/barkeeper/karte')
@@ -234,7 +235,7 @@ test('the bar starts an order: guest sees it being mixed; new orders chime at th
   await expect(guest.getByRole('button', { name: 'Stornieren' })).toHaveCount(0)
 
   await barOrder.getByRole('button', { name: 'Erledigt' }).click()
-  await expect(guest.getByText('Deine Bestellung ist fertig!')).toBeVisible()
+  await expect(guest.getByText(/ ist fertig$/)).toBeVisible()
   // Erledigen klingelt nicht.
   expect(await chimes()).toBe(1)
 })

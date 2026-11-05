@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import RecipeBar from './RecipeBar'
+import { orderErrorMessage } from '../orderResult'
+import type { OrderResult } from '../orderResult'
 import type { OrderItem, SubmittedOrder } from '../types'
 
 interface OrderBarProps {
   order: OrderItem[]
-  onSubmitOrder: (note: string) => void
+  onSubmitOrder: (note: string) => Promise<OrderResult>
   onRemoveItem: (orderId: string) => void
   initialNote?: string
   ownOpenOrder: SubmittedOrder | null
@@ -39,6 +41,10 @@ function OrderBar({
 }: OrderBarProps) {
   const [note, setNote] = useState(initialNote ?? '')
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  // Haengt am vorgemerkten Drink: mit einem anderen Drink ist die Meldung
+  // von selbst weg.
+  const [failure, setFailure] = useState<{ orderId: string; result: OrderResult } | null>(null)
 
   // "State waehrend des Renderns anpassen" (React-Ersatz fuer
   // getDerivedStateFromProps) statt setState in einem Effect: initialNote
@@ -73,21 +79,39 @@ function OrderBar({
     )
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (ownOpenOrder) return
+    if (ownOpenOrder || isSending) return
 
-    onSubmitOrder(note)
-    setNote('')
-    setIsExpanded(false)
+    setIsSending(true)
+    setFailure(null)
+    const result = await onSubmitOrder(note)
+    setIsSending(false)
+
+    if (result === 'sent') {
+      setNote('')
+      setIsExpanded(false)
+    } else {
+      // Drink und Anmerkung bleiben stehen, damit ein zweiter Versuch reicht.
+      setFailure({ orderId: drink.orderId, result })
+    }
   }
 
   let summaryHint = 'Anmerkung hinzufügen'
   if (note) summaryHint = `„${note}“`
   else if (ownOpenOrder) summaryHint = 'Erst wenn dein offener Drink fertig ist'
 
+  // "Schon offen" gilt nur, solange die andere Bestellung noch laeuft.
+  const showFailure =
+    failure?.orderId === drink.orderId && (failure.result !== 'already-open' || ownOpenOrder !== null)
+
   return (
     <form className="order-bar" onSubmit={handleSubmit}>
+      {showFailure && (
+        <p className="error-message order-bar-error" role="alert">
+          {orderErrorMessage(failure.result)}
+        </p>
+      )}
       {isExpanded && (
         <div className="order-bar-details" id="order-bar-details">
           {drink.recipe && <RecipeBar recipe={drink.recipe} />}
@@ -135,9 +159,9 @@ function OrderBar({
           type="submit"
           className="btn btn-primary order-bar-submit"
           aria-label="Bestellung abschicken"
-          disabled={ownOpenOrder !== null}
+          disabled={ownOpenOrder !== null || isSending}
         >
-          Abschicken
+          {isSending ? 'Sendet …' : 'Abschicken'}
         </button>
       </div>
     </form>

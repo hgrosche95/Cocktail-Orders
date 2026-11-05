@@ -26,7 +26,7 @@ function renderPage(props = {}) {
   return render(
     <DrinkPage
       cocktail={daiquiri}
-      onOrder={() => {}}
+      onOrder={() => Promise.resolve('sent')}
       hasOpenOrder={false}
       queueLength={2}
       unavailableIngredients={[]}
@@ -37,6 +37,17 @@ function renderPage(props = {}) {
 }
 
 describe('DrinkPage', () => {
+  test('stays on the page and keeps the note when the order failed', async () => {
+    const user = userEvent.setup()
+    renderPage({ onOrder: vi.fn().mockResolvedValue('failed') })
+
+    await user.type(screen.getByLabelText(/Anmerkung/), 'extra sauer')
+    await user.click(screen.getByRole('button', { name: /Bestellen/ }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Versuch es gleich noch einmal')
+    expect(screen.getByLabelText(/Anmerkung/)).toHaveValue('extra sauer')
+  })
+
   test('shows recipe facts derived from the recipe', () => {
     renderPage()
 
@@ -47,7 +58,7 @@ describe('DrinkPage', () => {
 
   test('orders the cocktail with the entered note', async () => {
     const user = userEvent.setup()
-    const onOrder = vi.fn()
+    const onOrder = vi.fn().mockResolvedValue('sent')
     renderPage({ onOrder })
 
     await user.type(screen.getByLabelText(/Anmerkung/), 'extra sauer')

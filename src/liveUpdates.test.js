@@ -100,6 +100,16 @@ describe('connectLiveUpdates', () => {
     expect(FakeWebSocket.instances).toHaveLength(2)
   })
 
+  test('refreshes when the tab becomes visible again with the connection still open', () => {
+    connectLiveUpdates('ws://test', { onChange, onReconnect })
+    latestSocket().serverOpen()
+
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(onReconnect).toHaveBeenCalledTimes(1)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+
   test('stops reconnecting after disconnect', () => {
     const disconnect = connectLiveUpdates('ws://test', { onChange, onReconnect })
     latestSocket().serverOpen()

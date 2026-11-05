@@ -8,13 +8,14 @@ import WishInput from '../components/WishInput'
 import HelpGuide from '../components/HelpGuide'
 import WaitingPanel from '../components/WaitingPanel'
 import type { Cocktail } from '../data/cocktails'
+import type { OrderResult } from '../orderResult'
 import type { OrderItem, SubmittedOrder, Recommendation } from '../types'
 
 interface CustomerPageProps {
   order: OrderItem[]
   onAddToOrder: (cocktail: Cocktail) => void
   onRemoveItem: (orderId: string) => void
-  onSubmitOrder: (note: string) => void
+  onSubmitOrder: (note: string) => Promise<OrderResult>
   onCancelOrder: (orderId: string) => void
   hasOpenOrder: boolean
   ownOpenOrder: SubmittedOrder | null
