@@ -38,7 +38,7 @@ function WishInput({ onSubmit, isLoading, isDisabled = false }: WishInputProps) 
         {isLoading ? 'Sucht …' : 'Finden'}
       </button>
       {isDisabled && (
-        <p className="error-message">Gerade nicht verfügbar — nutz einfach die Karte.</p>
+        <p className="error-message">Gerade nicht verfügbar. Nutz einfach die Karte.</p>
       )}
     </form>
   )

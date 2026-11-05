@@ -45,6 +45,7 @@ test('guest order reaches the bar live and the guest is notified when it is done
   await guest.getByRole('button', { name: 'Alles klar' }).click()
   const ratingPrompt = guest.locator('.rating-prompt')
   await expect(ratingPrompt).toContainText('Cable Car')
+  await ratingPrompt.getByRole('button', { name: /Cable Car/ }).click()
   await ratingPrompt.getByRole('button', { name: '5 von 5 Sternen' }).click()
   await expect(ratingPrompt).toHaveCount(0)
 })

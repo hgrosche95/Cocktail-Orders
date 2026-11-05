@@ -311,9 +311,8 @@ p {
   border-radius: 10px;
   font-family: var(--heading);
   font-weight: 600;
-  font-size: 17px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 18px;
+  letter-spacing: 0.02em;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
@@ -347,9 +346,8 @@ p {
   gap: 10px;
   font-family: var(--heading);
   font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 19px;
+  letter-spacing: 0.02em;
   border-radius: 12px;
   border: 1px solid transparent;
   padding: 12px 18px;
@@ -440,9 +438,8 @@ p {
   margin-bottom: 16px;
   font-family: var(--heading);
   font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 17px;
+  letter-spacing: 0.02em;
   color: var(--text);
 }
 
@@ -802,9 +799,8 @@ p {
   padding: 6px 13px;
   font-family: var(--heading);
   font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 16px;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
@@ -950,21 +946,19 @@ p {
   color: #cfcac2;
 }
 
-/* Trenner hinter statt vor dem Eintrag: bricht die Zeile um, beginnt die
-   neue Zeile nicht mit einem verwaisten Punkt. */
+/* Komma statt Mittelpunkt: Am Zeilenende liest es sich wie normaler Text
+   und bleibt nicht als verwaister Punkt haengen. */
 .cocktail-ingredient:not(:last-child)::after {
-  content: '·';
-  margin: 0 6px;
-  color: var(--cat-color, var(--accent-2));
+  content: ',';
+  margin-right: 5px;
 }
 
+/* Der volle Text steht im Drink-Detail, die Karte bleibt kurz. */
 .cocktail-description {
-  display: -webkit-box;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  margin: 6px 0 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin: 4px 0 0;
   font-size: 14px;
   line-height: 1.4;
   color: var(--text);
@@ -1515,19 +1509,58 @@ p {
 }
 
 .rating-prompt {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  padding-block: 4px;
 }
 
-.rating-prompt p {
-  margin: 0;
+.rating-prompt-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
   font-family: var(--heading);
   font-weight: 600;
-  font-size: 20px;
-  text-transform: uppercase;
+  font-size: 19px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
   color: var(--text-h);
+}
+
+.rating-prompt-toggle svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s ease;
+}
+
+.rating-prompt-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.rating-prompt-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.rating-prompt-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block: 4px 10px;
 }
 
 .rating-prompt strong {
@@ -1540,9 +1573,8 @@ p {
   cursor: pointer;
   font-family: var(--heading);
   font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 19px;
+  letter-spacing: 0.02em;
   color: var(--text-h);
 }
 
@@ -2037,10 +2069,9 @@ p {
 .order-bar-link {
   flex: none;
   font-family: var(--heading);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--accent-2);
 }
 
@@ -2063,6 +2094,7 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .notification,
   .order-bar,
   .order-bar-name {
     animation: none;
