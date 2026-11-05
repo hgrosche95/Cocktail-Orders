@@ -1,7 +1,7 @@
 # Cocktail Orders
 
-A small ordering app for a home bar, themed around movie-classic cocktails
-("Shaken, Not Stirred"): guests log in with their name, browse the menu by
+A small ordering app for a home bar, themed as a rooftop bar above
+Düsseldorf: guests log in with their name, browse the menu by
 category and submit an order with an optional note; the password-protected
 barkeeper view shows all open orders live and lets the barkeeper mark
 ingredients as out of stock (hiding cocktails that need them). Guests are
@@ -12,7 +12,7 @@ notified as soon as their order is ready.
 ## Features
 
 - Guest login by name (no password, just an identifier for the session)
-- Movie-themed cocktail menu, filterable by category, styled as a rooftop bar above Düsseldorf (skyline header with Rheinturm, Stadttor and Medienhafen)
+- Cocktail menu, filterable by category, with a glass drawn from each recipe, styled as a rooftop bar above Düsseldorf (skyline header with Rheinturm, Stadttor and Medienhafen)
 - Detail page per drink (`/drink/:id`) with a recipe bar, facts, note field and direct order
 - One-click order flow with an optional note, auto-scrolls to the order form
 - One open order per guest at a time, with clear feedback if a second one is attempted
@@ -22,7 +22,7 @@ notified as soon as their order is ready.
 - Waiting panel after ordering: live queue position next to a Rheinturm light clock that shows the current time
 - Password-protected barkeeper view of all open orders, updated in real time via WebSockets
 - Barkeeper can mark ingredients as unavailable; affected cocktails disappear from the menu automatically
-- Barkeeper can add their own drinks to the menu (`/barkeeper/karte`): name, category, movie, description, recipe with up to 12 ingredients; they show up for all guests live and can be edited or removed again (orders already placed keep the version they were ordered in). The base menu stays in `shared/cocktails.json` (changed via commit); added drinks live in the database (`custom_cocktails`, IDs from 1001)
+- Barkeeper can add their own drinks to the menu (`/barkeeper/karte`): name, category, description, recipe with up to 12 ingredients; they show up for all guests live and can be edited or removed again (orders already placed keep the version they were ordered in). The base menu stays in `shared/cocktails.json` (changed via commit); added drinks live in the database (`custom_cocktails`, IDs from 1001)
 - Barkeeper statistics (`/barkeeper/statistik`, last 24 h or all time): drinks served, guests, open orders, average rating, most ordered and best rated cocktails, and ingredient usage in cl from the recipes as a shopping aid; updates live
 - Free-text cocktail ordering ("something bitter, no rum, without ice") powered by an LLM (Groq): a clear single match (plus any serving note like "no ice") goes straight into the order form to review and confirm; an ambiguous wish shows a pick-list instead
 - Guests can rate cocktails they've had; a "recommended for you" section suggests cocktails liked by guests with similar taste (collaborative filtering)

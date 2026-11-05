@@ -11,10 +11,19 @@ function measuredIngredients(cocktail: Cocktail) {
   return (cocktail.recipe?.ingredients ?? []).filter((ingredient) => ingredient.amountCl != null)
 }
 
+// Klassiker, die die Regel unten falsch einordnet.
+const GLASS_EXCEPTIONS: Record<string, GlassKind> = {
+  Sazerac: 'tumbler',
+  'Silver Fizz': 'highball',
+}
+
 // Die Rezeptdaten kennen kein Glas als eigenes Feld. Es laesst sich aber aus
 // Eis, Menge und Filler ableiten - das gilt so auch fuer eigene Drinks der
 // Theke, ohne dass jemand beim Anlegen ein Glas auswaehlen muss.
 export function glassKind(cocktail: Cocktail): GlassKind {
+  const exception = GLASS_EXCEPTIONS[cocktail.name]
+  if (exception) return exception
+
   const measured = measuredIngredients(cocktail)
   const volume = measured.reduce((sum, ingredient) => sum + (ingredient.amountCl ?? 0), 0)
   const hasFiller = measured.some((ingredient) => /soda|tonic|sprudel|cola/i.test(ingredient.name))

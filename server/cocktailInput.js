@@ -5,7 +5,6 @@
 
 const LIMITS = {
   name: 60,
-  movie: 80,
   description: 300,
   ingredientName: 40,
   note: 80,
@@ -32,7 +31,6 @@ export function parseCocktailInput(body, { categories }) {
     const name = cleanText(input.name, LIMITS.name, 'name', { required: true })
     const category = cleanText(input.category, 100, 'category', { required: true })
     if (!categories.includes(category)) throw new Error('unknown category')
-    const movie = cleanText(input.movie, LIMITS.movie, 'movie')
     const description = cleanText(input.description, LIMITS.description, 'description')
 
     const recipe = input.recipe ?? {}
@@ -71,7 +69,6 @@ export function parseCocktailInput(body, { categories }) {
 
     const data = {
       category,
-      movie,
       recipe: { ingredients, ice, servedWithIceCubes },
     }
     if (description) data.description = description

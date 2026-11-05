@@ -10,7 +10,6 @@ const daiquiri = {
   category: 'Sauer & Erfrischend',
   ingredients: ['Rum', 'Limettensaft', 'Zuckersirup'],
   description: 'Der klassischste Cocktail überhaupt.',
-  movie: 'Unser Mann in Havanna',
   recipe: {
     ingredients: [
       { name: 'Rum', amountCl: 6 },

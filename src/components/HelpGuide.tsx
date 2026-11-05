@@ -1,22 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 function HelpGuide() {
   const [isOpen, setIsOpen] = useState(false)
+  const titleId = useId()
+  const openButtonRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!isOpen) return
 
+    // Schliessen ist das einzige Bedienelement im Dialog, Tab bleibt deshalb
+    // dort. Pfeiltasten scrollen den Text trotzdem.
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setIsOpen(false)
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        closeButtonRef.current?.focus()
+      }
     }
 
+    const openButton = openButtonRef.current
+    closeButtonRef.current?.focus()
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      openButton?.focus()
+    }
   }, [isOpen])
 
   return (
     <>
       <button
+        ref={openButtonRef}
         type="button"
         className="help-button"
         onClick={() => setIsOpen(true)}
@@ -27,8 +42,15 @@ function HelpGuide() {
 
       {isOpen && (
         <div className="modal-overlay" onClick={() => setIsOpen(false)}>
-          <div className="card modal" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="card modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
+              ref={closeButtonRef}
               type="button"
               className="btn btn-ghost btn-small modal-close"
               onClick={() => setIsOpen(false)}
@@ -37,7 +59,7 @@ function HelpGuide() {
               ✕
             </button>
 
-            <h2>So funktioniert's</h2>
+            <h2 id={titleId}>So funktioniert's</h2>
 
             <h3>Bestellen</h3>
             <p>

@@ -4,6 +4,10 @@ import { cleanup } from '@testing-library/react'
 
 expect.extend(matchers)
 
+// jsdom kennt kein Scrollen.
+window.scrollTo = () => {}
+
 afterEach(() => {
   cleanup()
+  sessionStorage.clear()
 })

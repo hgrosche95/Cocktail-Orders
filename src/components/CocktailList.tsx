@@ -5,6 +5,8 @@ import type { Cocktail } from '../data/cocktails'
 import { getCategoryTheme } from '../data/categories'
 import CocktailCard from './CocktailCard'
 
+const CATEGORY_STORAGE_KEY = 'menuCategory'
+
 function categoryStyle(color: string): CSSProperties {
   return { '--cat-color': color } as CSSProperties
 }
@@ -38,13 +40,19 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
   const categories = groupByCategory(availableCocktails)
   const categoryNames = Array.from(categories.keys())
 
-  const [selectedCategory, setSelectedCategory] = useState('Alle')
+  // Ueberlebt den Ausflug ins Drink-Detail. Ist die Kategorie gerade leer
+  // (alles ausverkauft), gilt wieder "Alle".
+  const [storedCategory, setStoredCategory] = useState(
+    () => sessionStorage.getItem(CATEGORY_STORAGE_KEY) ?? 'Alle'
+  )
+  const selectedCategory = categories.has(storedCategory) ? storedCategory : 'Alle'
   const listRef = useRef<HTMLDivElement>(null)
 
   // Die Filterleiste klebt am oberen Rand: wer tief in der Karte filtert,
   // soll am Anfang der gefilterten Liste landen, nicht irgendwo darin.
   function selectCategory(category: string) {
-    setSelectedCategory(category)
+    sessionStorage.setItem(CATEGORY_STORAGE_KEY, category)
+    setStoredCategory(category)
     const listTop = listRef.current?.getBoundingClientRect().top ?? 0
     if (listTop < 0) window.scrollBy({ top: listTop })
   }
@@ -60,6 +68,7 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
         <button
           type="button"
           className={selectedCategory === 'Alle' ? 'filter-chip active' : 'filter-chip'}
+          aria-pressed={selectedCategory === 'Alle'}
           onClick={() => selectCategory('Alle')}
         >
           Alle
@@ -71,6 +80,7 @@ function CocktailList({ onAddToOrder, unavailableIngredients }: CocktailListProp
               key={category}
               type="button"
               className={selectedCategory === category ? 'filter-chip active' : 'filter-chip'}
+              aria-pressed={selectedCategory === category}
               style={categoryStyle(theme.color)}
               onClick={() => selectCategory(category)}
             >

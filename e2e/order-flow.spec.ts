@@ -26,7 +26,7 @@ test('guest order reaches the bar live and the guest is notified when it is done
   await guest.goto('/')
   await guest.getByLabel('Wer kommt hoch?').fill(guestName)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
-  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Cable Car vormerken' }).click()
   await guest.getByRole('button', { name: /Anmerkung hinzufügen/ }).click()
   await guest.getByLabel('Anmerkung an die Theke (optional)').fill('ohne Zimt')
   await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
@@ -60,7 +60,7 @@ test('an ingredient marked as empty hides its cocktails for guests live', async 
   await guest.goto('/')
   await guest.getByLabel('Wer kommt hoch?').fill(`E2E-${Date.now()}`)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
-  const cableCar = guest.getByRole('button', { name: 'Cable Car bestellen' })
+  const cableCar = guest.getByRole('button', { name: 'Cable Car vormerken' })
   await expect(cableCar).toBeVisible()
 
   // Zimt steckt (Stand der Karte) nur im Cable Car.
@@ -89,7 +89,7 @@ test('a guest can cancel their open order, the bar sees it disappear live', asyn
   await guest.goto('/')
   await guest.getByLabel('Wer kommt hoch?').fill(guestName)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
-  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Cable Car vormerken' }).click()
   await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
 
   const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
@@ -105,7 +105,7 @@ test('a guest can cancel their open order, the bar sees it disappear live', asyn
   await expect(guest.locator('.rating-prompt')).toHaveCount(0)
 
   // Danach kann der Gast neu bestellen.
-  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Cable Car vormerken' }).click()
   await expect(guest.getByRole('button', { name: 'Bestellung abschicken' })).toBeEnabled()
 })
 
@@ -130,7 +130,7 @@ test('the bar statistics count a served drink live', async ({ browser }) => {
   await guest.goto('/')
   await guest.getByLabel('Wer kommt hoch?').fill(guestName)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
-  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Cable Car vormerken' }).click()
   await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
 
   const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
@@ -152,8 +152,8 @@ test('the bar adds a drink, guests see it live and can order it, then it is remo
   await guest.goto('/')
   await guest.getByLabel('Wer kommt hoch?').fill(guestName)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
-  const guestDrink = guest.getByRole('button', { name: `${drinkName} bestellen` })
-  await expect(guest.getByRole('button', { name: 'Cable Car bestellen' })).toBeVisible()
+  const guestDrink = guest.getByRole('button', { name: `${drinkName} vormerken` })
+  await expect(guest.getByRole('button', { name: 'Cable Car vormerken' })).toBeVisible()
   await expect(guestDrink).toHaveCount(0)
 
   await bar.goto('/barkeeper')
@@ -219,7 +219,7 @@ test('the bar starts an order: guest sees it being mixed; new orders chime at th
   await guest.goto('/')
   await guest.getByLabel('Wer kommt hoch?').fill(guestName)
   await guest.getByRole('button', { name: /Hochfahren/ }).click()
-  await guest.getByRole('button', { name: 'Cable Car bestellen' }).click()
+  await guest.getByRole('button', { name: 'Cable Car vormerken' }).click()
   await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
 
   const barOrder = bar.locator('.barkeeper-order', { hasText: guestName })
@@ -264,7 +264,7 @@ test('the bar edits its own drink: guests see the new version live, placed order
     await guest.goto('/')
     await guest.getByLabel('Wer kommt hoch?').fill(guestName)
     await guest.getByRole('button', { name: /Hochfahren/ }).click()
-    await guest.getByRole('button', { name: `${drinkName} bestellen` }).click()
+    await guest.getByRole('button', { name: `${drinkName} vormerken` }).click()
     await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
     await expect(guest.locator('.waiting-panel')).toContainText(drinkName)
 
@@ -277,8 +277,8 @@ test('the bar edits its own drink: guests see the new version live, placed order
     await expect(bar.getByRole('status')).toContainText(`„${newName}“ ist gespeichert.`)
 
     // Karte beim Gast: live die neue Fassung.
-    await expect(guest.getByRole('button', { name: `${newName} bestellen` })).toBeVisible()
-    await expect(guest.getByRole('button', { name: `${drinkName} bestellen` })).toHaveCount(0)
+    await expect(guest.getByRole('button', { name: `${newName} vormerken` })).toBeVisible()
+    await expect(guest.getByRole('button', { name: `${drinkName} vormerken` })).toHaveCount(0)
 
     // Die schon abgegebene Bestellung bleibt bei der alten Fassung.
     await bar.getByRole('link', { name: '← Theke' }).click()

@@ -11,7 +11,6 @@
       "Zimt"
     ],
     "description": "Leicht, Zitrusnoten, nicht zu süß, mit einem würzigen Aroma.",
-    "movie": "Silicon Valley",
     "recipe": {
       "ingredients": [
         {
@@ -49,7 +48,6 @@
       "Bitter"
     ],
     "description": "Der Drink macht Champagner, oder in unserem Falle Sekt, gefährlich einfach zu trinken. Im Laufe der Zeit wird der Drink immer süßer.",
-    "movie": "An Affair to Remember",
     "recipe": {
       "ingredients": [
         {
@@ -79,7 +77,6 @@
       "Zuckersirup"
     ],
     "description": "Der klassischste Cocktail überhaupt.",
-    "movie": "Unser Mann in Havanna",
     "recipe": {
       "ingredients": [
         {
@@ -110,7 +107,6 @@
       "Sekt"
     ],
     "description": "Ein eleganter Drink, spritzig frisch mit leichten Aromen des Gins im Abgang.",
-    "movie": "Casablanca",
     "recipe": {
       "ingredients": [
         {
@@ -145,7 +141,6 @@
       "Agavensirup",
       "Limettensaft"
     ],
-    "movie": "Crazy, Stupid, Love.",
     "recipe": {
       "ingredients": [
         {
@@ -181,7 +176,6 @@
       "Soda"
     ],
     "description": "Ein erfrischender Drink, bei dem es zu einfach ist, viel davon zu trinken.",
-    "movie": "Die Another Day",
     "recipe": {
       "ingredients": [
         {
@@ -222,7 +216,6 @@
       "Zuckersirup"
     ],
     "description": "Ein Gin Fizz mit seidigem Mundgefühl.",
-    "movie": "The Great Gatsby",
     "recipe": {
       "ingredients": [
         {
@@ -252,7 +245,6 @@
       "Zuckersirup",
       "Soda"
     ],
-    "movie": "Meine Braut, ihr Vater und ich",
     "recipe": {
       "ingredients": [
         {
@@ -287,7 +279,6 @@
       "Zitronensaft",
       "Zuckersirup"
     ],
-    "movie": "Das Böse unter der Sonne",
     "recipe": {
       "ingredients": [
         {
@@ -321,7 +312,6 @@
       "Zuckersirup",
       "Bitter"
     ],
-    "movie": "Lost in Translation",
     "recipe": {
       "ingredients": [
         {
@@ -356,7 +346,6 @@
       "Basilikum"
     ],
     "description": "Frisch, kräutrig und spritzig-süß zugleich – der moderne Klassiker aus der Craft-Cocktail-Szene.",
-    "movie": "Julie & Julia",
     "recipe": {
       "ingredients": [
         {
@@ -391,7 +380,6 @@
       "Brombeerlikör"
     ],
     "description": "Spritzig-süß mit einer fruchtigen Brombeernote, die sich langsam durch den Drink zieht.",
-    "movie": "",
     "recipe": {
       "ingredients": [
         {
@@ -426,7 +414,6 @@
       "Sodawasser"
     ],
     "description": "Erfrischend, bitter und ein wenig süß. Leicht zu trinken durch die Verdünnung mit prickelndem Sprudelwasser.",
-    "movie": "Liebesgrüße aus Moskau",
     "recipe": {
       "ingredients": [
         {
@@ -457,7 +444,6 @@
       "Wermut"
     ],
     "description": "Ein Drink mit elegantem bitterem und leicht süßlichem Geschmack. Die Zutaten sind alle präsent im Geschmack des Cocktails.",
-    "movie": "Billions",
     "recipe": {
       "ingredients": [
         {
@@ -488,7 +474,6 @@
       "Bitter"
     ],
     "description": "Seidig, leicht süß, lieblich vom Wermut, frisch und vielschichtig vom Geschmack, leicht würzig.",
-    "movie": "The Lost City",
     "recipe": {
       "ingredients": [
         {
@@ -522,7 +507,6 @@
       "Bitter"
     ],
     "description": "Süßlich-herb, gut ausbalanciert und komplex, ein Klassiker aus gutem Grund.",
-    "movie": "Manche mögen's heiß",
     "recipe": {
       "ingredients": [
         {
@@ -551,7 +535,6 @@
       "Minze",
       "Zuckersirup"
     ],
-    "movie": "Goldfinger",
     "recipe": {
       "ingredients": [
         {
@@ -581,7 +564,6 @@
       "Wermut"
     ],
     "description": "Anfangs süßlich, im Abgang bitter. Der Klassiker der bitteren Cocktails.",
-    "movie": "Uncharted",
     "recipe": {
       "ingredients": [
         {
@@ -612,7 +594,6 @@
       "Sekt"
     ],
     "description": "Im Vergleich zum klassischen Negroni etwas herber, erfrischender und süffiger, je nach Sekt auch etwas süßer.",
-    "movie": "Succession",
     "recipe": {
       "ingredients": [
         {
@@ -646,7 +627,6 @@
       "Bitter",
       "Zucker"
     ],
-    "movie": "Mad Men",
     "recipe": {
       "ingredients": [
         {
@@ -676,7 +656,6 @@
       "Absinth",
       "Bitter"
     ],
-    "movie": "Live and Let Die",
     "recipe": {
       "ingredients": [
         {
@@ -710,7 +689,6 @@
       "Lillet Blanc"
     ],
     "description": "Ein sehr starker Drink.",
-    "movie": "James Bond",
     "recipe": {
       "ingredients": [
         {
@@ -739,7 +717,6 @@
       "Tonic Water"
     ],
     "description": "Klar, frisch und unkompliziert – ein Gin Tonic mit Wiedererkennungswert.",
-    "movie": "Déjà Vu",
     "recipe": {
       "ingredients": [
         {
@@ -765,7 +742,6 @@
       "Sodawasser"
     ],
     "description": "Bittersüß, spritzig-erfrischend und der Inbegriff des italienischen Sommers.",
-    "movie": "Call Me by Your Name",
     "recipe": {
       "ingredients": [
         {
@@ -796,7 +772,6 @@
       "Sodawasser"
     ],
     "description": "Süßlich-zitronig und erfrischend – pure italienische Sommer-Leichtigkeit.",
-    "movie": "The Talented Mr. Ripley",
     "recipe": {
       "ingredients": [
         {
@@ -826,7 +801,6 @@
       "Cola",
       "Limettensaft"
     ],
-    "movie": "Die Another Day",
     "recipe": {
       "ingredients": [
         {
@@ -857,7 +831,6 @@
       "Zitronensaft"
     ],
     "description": "Ein süßlicher Cocktail, leicht herb, der Melonenlikör ist hier nicht allzu präsent.",
-    "movie": "Crazy Rich Asians",
     "recipe": {
       "ingredients": [
         {
@@ -888,7 +861,6 @@
       "Vodka"
     ],
     "description": "Ein Drink, der schmeckt wie eine Süßigkeit mit Alkohol.",
-    "movie": "Blues Brothers",
     "recipe": {
       "ingredients": [
         {
@@ -921,7 +893,6 @@
       "Kaffeelikör",
       "Espresso"
     ],
-    "movie": "Layer Cake",
     "recipe": {
       "ingredients": [
         {
@@ -950,7 +921,6 @@
       "Likör 43",
       "Milch"
     ],
-    "movie": "Inglourious Basterds",
     "recipe": {
       "ingredients": [
         {
@@ -975,7 +945,6 @@
       "Kaffeelikör",
       "Sahne"
     ],
-    "movie": "The Big Lebowski",
     "recipe": {
       "ingredients": [
         {
@@ -1004,7 +973,6 @@
       "Wasser"
     ],
     "description": "Einfach ein Glas Wasser. Gerne auch mit Sprudelwasser.",
-    "movie": "Jurassic Park",
     "recipe": {
       "ingredients": [
         {

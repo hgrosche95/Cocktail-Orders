@@ -15,6 +15,8 @@ describe('glassKind', () => {
     ['Old Fashioned', 'tumbler'],
     ['Mojito', 'highball'],
     ['Aperol Spritz', 'highball'],
+    ['Sazerac', 'tumbler'],
+    ['Silver Fizz', 'highball'],
   ])('%s kommt ins Glas %s', (name, kind) => {
     expect(glassKind(byName(name))).toBe(kind)
   })
