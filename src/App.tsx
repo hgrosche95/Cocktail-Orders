@@ -13,6 +13,8 @@ import { MenuContext } from './data/menu'
 import MenuEditorPage from './pages/MenuEditorPage'
 import type { NewCocktail } from './pages/MenuEditorPage'
 import { connectLiveUpdates } from './liveUpdates'
+import ReadyMoment from './components/ReadyMoment'
+import type { OrderResult } from './orderResult'
 import { WS_URL, getJson, sendJson } from './api'
 import { useGuestData } from './hooks/useGuestData'
 import { useBarkeeperAuth } from './hooks/useBarkeeperAuth'
@@ -38,7 +40,11 @@ function App() {
   // Grundkarte sofort, die ganze Karte (mit Drinks der Theke) sobald der
   // Server antwortet und nach jeder Live-Aenderung.
   const [menu, setMenu] = useState<Cocktail[]>(baseCocktails)
-  const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState<string | null>(null)
+  // Ueberlebt ein Neuladen: wer "Spaeter" gesagt hat, soll nicht bei jedem
+  // Oeffnen der Seite erneut gefragt werden.
+  const [dismissedHistoryOrderId, setDismissedHistoryOrderId] = useState(
+    () => localStorage.getItem('dismissedRatingOrderId')
+  )
   // Zaehlt jede Live-Aenderung mit; Ansichten, die selbst laden (Statistik),
   // laden darauf neu.
   const [liveVersion, setLiveVersion] = useState(0)
@@ -128,7 +134,7 @@ function App() {
     useWish({ cocktails: menu, unavailableIngredients, onSingleMatch: handleAddToOrder })
 
   function handleOrderNow(cocktail: Cocktail, note: string) {
-    handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
+    return handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
   }
 
   function handleRemoveItem(orderId: string) {
@@ -145,7 +151,7 @@ function App() {
   // jetzt in der Historie. Nur aufs Verschwinden zu schauen, wuerde auch
   // nach einem Storno "fertig" melden. Beides kommt nach einer Aenderung in
   // beliebiger Reihenfolge an, deshalb ein Effekt fuer beide.
-  const [showReadyNotification, setShowReadyNotification] = useState(false)
+  const [readyItem, setReadyItem] = useState<OrderItem | null>(null)
   const ownOpenOrderId = ownOpenOrder?.orderId ?? null
   const previousOwnOrderId = useRef<string | null>(null)
   const awaitingReadyOrderId = useRef<string | null>(null)
@@ -158,29 +164,39 @@ function App() {
     }
 
     const awaitedId = awaitingReadyOrderId.current
-    if (awaitedId && history.some((o) => o.orderId === awaitedId)) {
+    const readyOrder = history.find((o) => o.orderId === awaitedId)
+    if (awaitedId && readyOrder) {
       awaitingReadyOrderId.current = null
-      setShowReadyNotification(true)
+      setReadyItem(readyOrder.items[0] ?? null)
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      // An der lauten Bar faellt das Handy in der Hand eher auf als die Anzeige.
+      navigator.vibrate?.([80, 60, 80])
     }
   }, [ownOpenOrderId, history])
 
   // items ist optional: die Karte schickt die vorgemerkte Bestellung ab, die
   // Detailansicht eines Drinks bestellt ihn direkt, ohne Umweg ueber `order`
   // (ein setOrder direkt vor dem fetch waere hier noch nicht angekommen).
-  function handleSubmitOrder(note: string, items: OrderItem[] = order) {
-    if (hasOpenOrder) return
+  function handleSubmitOrder(note: string, items: OrderItem[] = order): Promise<OrderResult> {
+    if (hasOpenOrder) return Promise.resolve('already-open')
 
-    sendJson('/orders', 'POST', { name: currentUser, items, note })
-      // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B. aus
-      // einem zweiten Tab), dann nichts in die lokale Liste uebernehmen.
-      .then((res) => (res.ok ? res.json() : null))
-      .then((newOrder: SubmittedOrder | null) => {
-        if (!newOrder) return
-        setOpenOrders((prevOpenOrders) => [...prevOpenOrders, newOrder])
-        setOrder([])
+    return sendJson('/orders', 'POST', { name: currentUser, items, note })
+      .then(async (res): Promise<OrderResult> => {
+        if (res.ok) {
+          const newOrder: SubmittedOrder = await res.json()
+          setOpenOrders((prevOpenOrders) => [...prevOpenOrders, newOrder])
+          setOrder([])
+          return 'sent'
+        }
+        // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B.
+        // aus einem zweiten Tab): die holen, damit die Warteansicht erscheint.
+        if (res.status === 409) {
+          getJson<SubmittedOrder[]>('/orders').then(setOpenOrders).catch(reportUnreachable)
+          return 'already-open'
+        }
+        return 'failed'
       })
-      .catch(reportUnreachable)
+      .catch((): OrderResult => 'failed')
   }
 
   function handleCancelOrder(orderId: string) {
@@ -265,11 +281,14 @@ function App() {
   )
 
   function handleDismissRatingPrompt(orderId: string) {
+    localStorage.setItem('dismissedRatingOrderId', orderId)
     setDismissedHistoryOrderId(orderId)
   }
 
   const latestCompletedOrder = history[0]
+  // Nicht gleichzeitig mit "ist fertig" fragen: da hat noch niemand probiert.
   const pendingRatingItem =
+    !readyItem &&
     latestCompletedOrder &&
     latestCompletedOrder.orderId !== dismissedHistoryOrderId &&
     latestCompletedOrder.items[0] &&
@@ -375,16 +394,11 @@ function App() {
           <Skyline className="app-skyline" />
         </header>
 
-        {showReadyNotification && (
-          <div className="notification">
-            <p>
-              <span className="notification-dot" aria-hidden="true" /> Deine Bestellung ist fertig!
-            </p>
-            <button type="button" className="btn" onClick={() => setShowReadyNotification(false)}>
-              Schließen
-            </button>
-          </div>
-        )}
+        {/* Der Live-Bereich steht immer im DOM, sonst lesen Screenreader die
+            Meldung beim Erscheinen nicht vor. */}
+        <div aria-live="polite">
+          {readyItem && <ReadyMoment item={readyItem} onClose={() => setReadyItem(null)} />}
+        </div>
 
         {isServerUnreachable && (
           <div className="notification">

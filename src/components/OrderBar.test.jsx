@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import OrderBar from './OrderBar'
 
@@ -9,7 +9,7 @@ const openOrder = { orderId: 'o1', name: 'Hanna', items: [{ orderId: 'x', name: 
 function renderBar(props = {}) {
   const defaults = {
     order,
-    onSubmitOrder: () => {},
+    onSubmitOrder: () => Promise.resolve('sent'),
     onRemoveItem: () => {},
     ownOpenOrder: null,
     queuePosition: 0,
@@ -29,7 +29,7 @@ describe('OrderBar: vorgemerkter Drink', () => {
 
   test('submits the drink directly from the bar', async () => {
     const user = userEvent.setup()
-    const onSubmitOrder = vi.fn()
+    const onSubmitOrder = vi.fn().mockResolvedValue('sent')
     renderBar({ onSubmitOrder })
 
     expect(screen.getByText('Mojito')).toBeInTheDocument()
@@ -56,6 +56,78 @@ describe('OrderBar: vorgemerkter Drink', () => {
   })
 })
 
+describe('OrderBar: Rueckmeldung beim Abschicken', () => {
+  test('shows a sending state and blocks a second tap', async () => {
+    const user = userEvent.setup()
+    let finish
+    const onSubmitOrder = vi.fn(() => new Promise((resolve) => (finish = resolve)))
+    renderBar({ onSubmitOrder })
+
+    await user.click(screen.getByRole('button', { name: 'Bestellung abschicken' }))
+
+    expect(screen.getByText('Sendet …')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Bestellung abschicken' })).toBeDisabled()
+    expect(onSubmitOrder).toHaveBeenCalledTimes(1)
+
+    await act(async () => finish('sent'))
+    expect(screen.getByRole('button', { name: 'Bestellung abschicken' })).toBeEnabled()
+  })
+
+  test('keeps the note and says so when sending failed', async () => {
+    const user = userEvent.setup()
+    const onSubmitOrder = vi.fn().mockResolvedValue('failed')
+    renderBar({ onSubmitOrder, initialNote: 'ohne Eis' })
+
+    await user.click(screen.getByRole('button', { name: 'Bestellung abschicken' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Versuch es gleich noch einmal')
+    expect(screen.getByText('„ohne Eis“')).toBeInTheDocument()
+  })
+
+  test('explains a rejected order only while the other order is still open', async () => {
+    const user = userEvent.setup()
+    const props = {
+      order,
+      onSubmitOrder: vi.fn().mockResolvedValue('already-open'),
+      onRemoveItem: () => {},
+      ownOpenOrder: null,
+      queuePosition: 0,
+      queueLength: 0,
+      isWaitingPanelVisible: false,
+      onShowWaitingPanel: () => {},
+    }
+    const { rerender } = render(<OrderBar {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Bestellung abschicken' }))
+
+    rerender(<OrderBar {...props} ownOpenOrder={openOrder} queuePosition={1} queueLength={1} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('schon eine offene Bestellung')
+
+    rerender(<OrderBar {...props} />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  test('drops the failure message once another drink is selected', async () => {
+    const user = userEvent.setup()
+    const props = {
+      order,
+      onSubmitOrder: vi.fn().mockResolvedValue('failed'),
+      onRemoveItem: () => {},
+      ownOpenOrder: null,
+      queuePosition: 0,
+      queueLength: 0,
+      isWaitingPanelVisible: false,
+      onShowWaitingPanel: () => {},
+    }
+    const { rerender } = render(<OrderBar {...props} />)
+    await user.click(screen.getByRole('button', { name: 'Bestellung abschicken' }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    rerender(<OrderBar {...props} order={[{ orderId: 'b', name: 'Negroni' }]} />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
 describe('OrderBar: Anmerkung', () => {
   test('shows a pre-filled note (e.g. from the chat order) without opening the details', () => {
     renderBar({ initialNote: 'ohne Eis' })
@@ -66,7 +138,7 @@ describe('OrderBar: Anmerkung', () => {
 
   test('the guest can still edit the pre-filled note before submitting', async () => {
     const user = userEvent.setup()
-    const onSubmitOrder = vi.fn()
+    const onSubmitOrder = vi.fn().mockResolvedValue('sent')
     renderBar({ onSubmitOrder, initialNote: 'ohne Eis' })
 
     await user.click(screen.getByRole('button', { name: /Mojito/, expanded: false }))

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import RecipeBar from '../components/RecipeBar'
+import { orderErrorMessage } from '../orderResult'
+import type { OrderResult } from '../orderResult'
 import type { Cocktail } from '../data/cocktails'
 
 // Die Rezeptdaten kennen keine Zubereitungsart als eigenes Feld, sie steckt
@@ -19,7 +21,7 @@ function totalCl(cocktail: Cocktail): number {
 
 interface DrinkPageProps {
   cocktail: Cocktail | undefined
-  onOrder: (cocktail: Cocktail, note: string) => void
+  onOrder: (cocktail: Cocktail, note: string) => Promise<OrderResult>
   hasOpenOrder: boolean
   queueLength: number
   unavailableIngredients: string[]
@@ -27,6 +29,8 @@ interface DrinkPageProps {
 
 function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIngredients }: DrinkPageProps) {
   const [note, setNote] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [failedResult, setFailedResult] = useState<OrderResult | null>(null)
   const navigate = useNavigate()
 
   if (!cocktail) {
@@ -45,13 +49,23 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
   )
   const volume = totalCl(cocktail)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!cocktail || hasOpenOrder || isUnavailable) return
-    onOrder(cocktail, note)
-    // Zur Karte zurueck - dort erscheint die Warteansicht mit dem Rheinturm
-    // und scrollt sich selbst ins Bild, sobald der Server die Bestellung kennt.
-    navigate('/')
+    if (!cocktail || hasOpenOrder || isUnavailable || isSending) return
+
+    setIsSending(true)
+    setFailedResult(null)
+    const result = await onOrder(cocktail, note)
+    setIsSending(false)
+
+    if (result === 'sent') {
+      // Zur Karte zurueck - dort erscheint die Warteansicht mit dem Rheinturm
+      // und scrollt sich selbst ins Bild.
+      navigate('/')
+    } else {
+      // Hierbleiben: Anmerkung bleibt stehen, ein zweiter Versuch reicht.
+      setFailedResult(result)
+    }
   }
 
   return (
@@ -93,9 +107,9 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
       <button
         type="submit"
         className="btn btn-primary btn-block btn-split"
-        disabled={hasOpenOrder || isUnavailable}
+        disabled={hasOpenOrder || isUnavailable || isSending}
       >
-        <span>{isUnavailable ? 'Heute leider aus' : 'Bestellen'}</span>
+        <span>{isUnavailable ? 'Heute leider aus' : isSending ? 'Wird geschickt …' : 'Bestellen'}</span>
         {/* Mit offener Bestellung zaehlt die Schlange den Gast selbst mit. */}
         {!hasOpenOrder && (
           <span className="btn-meta">
@@ -103,8 +117,14 @@ function DrinkPage({ cocktail, onOrder, hasOpenOrder, queueLength, unavailableIn
           </span>
         )}
       </button>
-      {hasOpenOrder && (
+      {hasOpenOrder ? (
         <p className="error-message">Du hast bereits eine offene Bestellung an der Theke.</p>
+      ) : (
+        failedResult && (
+          <p className="error-message" role="alert">
+            {orderErrorMessage(failedResult)}
+          </p>
+        )
       )}
     </form>
   )

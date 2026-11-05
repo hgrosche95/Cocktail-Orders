@@ -605,12 +605,43 @@ p {
   gap: 10px;
 }
 
-.notification-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent-text);
-  animation: beacon 1.2s infinite;
+/* Fertig-Moment: dieselbe Abenddaemmerung wie ueber der Skyline */
+.ready-moment {
+  margin-bottom: 16px;
+  padding: 20px 16px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #1b1f31 0%, #3c2638 52%, #b4533b 82%, #ff9a5c 100%);
+  box-shadow: var(--shadow-md);
+  animation: ready-in 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ready-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+
+.ready-moment-body {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.ready-moment h2 {
+  display: block;
+  margin: 0 0 6px;
+  font-size: clamp(32px, 10vw, 44px);
+  line-height: 0.95;
+  text-wrap: balance;
+}
+
+.ready-moment p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-h);
 }
 
 .notification .btn {
@@ -662,7 +693,7 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .skyline-beacon,
-  .notification-dot,
+  .ready-moment,
   .rheinturm-antenna::before {
     animation: none;
   }
@@ -2111,4 +2142,8 @@ p {
     position: absolute;
     inset: -5px 0;
   }
+}
+
+.order-bar-error {
+  margin: 0 0 10px;
 }

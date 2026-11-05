@@ -47,11 +47,16 @@ export function connectLiveUpdates(
   }
 
   // Kommt ein eingefrorener Tab zurueck in den Vordergrund, nicht erst den
-  // (evtl. 30 s langen) Backoff abwarten.
+  // (evtl. 30 s langen) Backoff abwarten. Steht die Verbindung noch, koennen
+  // Nachrichten waehrend der Handy-Sperre trotzdem verloren gegangen sein.
   function handleVisibilityChange() {
-    if (document.visibilityState === 'visible' && retryTimer !== undefined) {
+    if (document.visibilityState !== 'visible') return
+
+    if (retryTimer !== undefined) {
       clearTimeout(retryTimer)
       connect()
+    } else if (socket.readyState === WebSocket.OPEN) {
+      onReconnect()
     }
   }
 
