@@ -18,7 +18,7 @@ test('guest order reaches the bar live and the guest is notified when it is done
   // Theke zuerst oeffnen: die Bestellung muss dort live auftauchen, ohne
   // Neuladen.
   await bar.goto('/barkeeper')
-  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
   await bar.getByRole('button', { name: 'Anmelden' }).click()
   await expect(bar.getByRole('heading', { name: /Theke/ })).toBeVisible()
 
@@ -53,7 +53,7 @@ test('an ingredient marked as empty hides its cocktails for guests live', async 
   const bar = await (await browser.newContext()).newPage()
 
   await bar.goto('/barkeeper')
-  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
   await bar.getByRole('button', { name: 'Anmelden' }).click()
 
   await guest.goto('/')
@@ -82,7 +82,7 @@ test('a guest can cancel their open order, the bar sees it disappear live', asyn
   const bar = await (await browser.newContext()).newPage()
 
   await bar.goto('/barkeeper')
-  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
   await bar.getByRole('button', { name: 'Anmelden' }).click()
 
   await guest.goto('/')
@@ -116,7 +116,7 @@ test('the bar statistics count a served drink live', async ({ browser }) => {
 
   for (const page of [bar, stats]) {
     await page.goto('/barkeeper')
-    await page.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+    await page.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
     await page.getByRole('button', { name: 'Anmelden' }).click()
   }
   await stats.getByRole('link', { name: 'Statistik' }).click()
@@ -156,7 +156,7 @@ test('the bar adds a drink, guests see it live and can order it, then it is remo
   await expect(guestDrink).toHaveCount(0)
 
   await bar.goto('/barkeeper')
-  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
   await bar.getByRole('button', { name: 'Anmelden' }).click()
   await bar.getByRole('link', { name: 'Karte' }).click()
   await bar.getByLabel('Name', { exact: true }).fill(drinkName)
@@ -210,7 +210,7 @@ test('the bar starts an order: guest sees it being mixed; new orders chime at th
   const chimes = () => bar.evaluate(() => (window as unknown as { chimes: number }).chimes)
 
   await bar.goto('/barkeeper')
-  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
   await bar.getByRole('button', { name: 'Anmelden' }).click()
   await expect(bar.getByRole('button', { name: /Ton an/ })).toBeVisible()
   expect(await chimes()).toBe(0)
@@ -250,7 +250,7 @@ test('the bar edits its own drink: guests see the new version live, placed order
   const bar = await (await browser.newContext()).newPage()
 
   await bar.goto('/barkeeper/karte')
-  await bar.getByLabel('Barkeeper-Passwort:').fill(BARKEEPER_PASSWORD)
+  await bar.getByLabel('Barkeeper-Passwort').fill(BARKEEPER_PASSWORD)
   await bar.getByRole('button', { name: 'Anmelden' }).click()
   await bar.getByLabel('Name', { exact: true }).fill(drinkName)
   await bar.getByLabel('Zutat 1', { exact: true }).fill('Rum')

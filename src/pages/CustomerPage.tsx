@@ -80,7 +80,7 @@ function CustomerPage({
       <div className="queue-row">
         <p className="queue-counter">
           <span className="live-dot" aria-hidden="true" />
-          {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} in der Warteschlange
+          {queueLength} {queueLength === 1 ? 'Bestellung' : 'Bestellungen'} an der Theke
         </p>
         <HelpGuide />
       </div>

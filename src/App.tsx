@@ -398,7 +398,7 @@ function App() {
         {!isDrinkDetail && (
           <nav className="tabs">
             <NavLink to="/" end className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-              Kunde
+              Gast
             </NavLink>
             <NavLink
               to="/barkeeper"
