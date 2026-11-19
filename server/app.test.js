@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterAll, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import request from 'supertest'
 import { prisma } from './prisma.js'
 import { createApp } from './app.js'
@@ -657,6 +658,143 @@ describe('GET /api/recommendations', () => {
     const response = await request(app).get('/api/recommendations').query({ guest: 'Max' })
 
     expect(response.body).toEqual([{ cocktailId: 2, predictedRating: 4 }])
+  })
+})
+
+describe('Gastname mit Leerzeichen am Ende', () => {
+  let app
+
+  beforeEach(() => {
+    app = buildTestApp()
+  })
+
+  test('history findet Gast mit Leerzeichen am Ende', async () => {
+    await serve('Testgast', 1)
+
+    const response = await request(app).get('/api/orders/history').query({ guest: 'Testgast ' })
+
+    expect(response.status).toBe(200)
+    expect(response.body).toHaveLength(1)
+    expect(response.body[0].name).toBe('Testgast')
+  })
+
+  test('ratings und recommendations trimmen guest', async () => {
+    await serve('Testgast', 1)
+    await prisma.rating.create({ data: { guestName: 'Testgast', cocktailId: 1, rating: 4 } })
+
+    const ratings = await request(app).get('/api/ratings').query({ guest: 'Testgast ' })
+    const recommendations = await request(app)
+      .get('/api/recommendations')
+      .query({ guest: 'Testgast ' })
+
+    expect(ratings.body).toEqual([{ cocktailId: 1, rating: 4 }])
+    expect(recommendations.status).toBe(200)
+  })
+
+  test('POST /api/ratings speichert getrimmten Namen', async () => {
+    await serve('Testgast', 1)
+
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Testgast ', cocktailId: 1, rating: 4 })
+
+    expect(response.status).toBeGreaterThanOrEqual(200)
+    expect(response.status).toBeLessThan(300)
+    expect(await prisma.rating.findMany({ where: { guestName: 'Testgast' } })).toHaveLength(1)
+    expect(await prisma.rating.findMany({ where: { guestName: 'Testgast ' } })).toHaveLength(0)
+  })
+
+  test('POST /api/ratings lehnt reinen Leerzeichen-Namen ab', async () => {
+    const response = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: '   ', cocktailId: 1, rating: 4 })
+
+    expect(response.status).toBe(400)
+  })
+})
+
+describe('Migration trim_guest_names', () => {
+  // Die Datei wird erst im Test gelesen, nicht beim Sammeln der Suite: bis
+  // Schritt 3 sie anlegt, scheitern nur diese Tests, nicht die ganze Datei.
+  async function runMigration() {
+    const sql = readFileSync(
+      new URL('./prisma/migrations/20261119120000_trim_guest_names/migration.sql', import.meta.url),
+      'utf8',
+    )
+    for (const statement of sql.split(';')) {
+      if (statement.replace(/--.*$/gm, '').trim() === '') continue
+      await prisma.$executeRawUnsafe(statement)
+    }
+  }
+
+  function openOrder(name) {
+    return prisma.order.create({
+      data: { orderId: crypto.randomUUID(), name, items: [] },
+    })
+  }
+
+  function closedOrder(name) {
+    return prisma.order.create({
+      data: { orderId: crypto.randomUUID(), name, items: [], completedAt: new Date() },
+    })
+  }
+
+  test('Migration trimmt Bewertung ohne Kollision', async () => {
+    const name = `Mig-${Date.now()}`
+    await prisma.rating.create({ data: { guestName: `${name} `, cocktailId: 1, rating: 3 } })
+
+    await runMigration()
+
+    const rows = await prisma.rating.findMany({ where: { guestName: { startsWith: name } } })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ guestName: name, cocktailId: 1, rating: 3 })
+  })
+
+  test('Migration behaelt getrimmte Bewertung bei Kollision', async () => {
+    const name = `Mig-${Date.now()}`
+    await prisma.rating.create({ data: { guestName: name, cocktailId: 1, rating: 5 } })
+    await prisma.rating.create({ data: { guestName: `${name} `, cocktailId: 1, rating: 2 } })
+
+    await runMigration()
+
+    const rows = await prisma.rating.findMany({ where: { guestName: { startsWith: name } } })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ guestName: name, rating: 5 })
+  })
+
+  test('Migration trimmt Bestellnamen', async () => {
+    const stamp = Date.now()
+    const closed = `Mig-Z${stamp}`
+    const open = `Mig-W${stamp}`
+    await closedOrder(`${closed} `)
+    await openOrder(open)
+    await openOrder(`${open} `)
+
+    await runMigration()
+
+    const closedRows = await prisma.order.findMany({ where: { name: { startsWith: closed } } })
+    expect(closedRows.map((r) => r.name)).toEqual([closed])
+    const openRows = await prisma.order.findMany({ where: { name: { startsWith: open } } })
+    expect(openRows.map((r) => r.name).sort()).toEqual([open, `${open} `])
+  })
+
+  test('Migration ist idempotent', async () => {
+    const stamp = Date.now()
+    await prisma.rating.create({ data: { guestName: `Mig-I${stamp} `, cocktailId: 1, rating: 3 } })
+    await closedOrder(`Mig-I${stamp} `)
+    await openOrder(`Mig-J${stamp}`)
+    await openOrder(`Mig-J${stamp} `)
+
+    const count = async () => [
+      await prisma.rating.count({ where: { guestName: { startsWith: 'Mig-' } } }),
+      await prisma.order.count({ where: { name: { startsWith: 'Mig-' } } }),
+    ]
+
+    await runMigration()
+    const after1 = await count()
+    await runMigration()
+
+    expect(await count()).toEqual(after1)
   })
 })
 

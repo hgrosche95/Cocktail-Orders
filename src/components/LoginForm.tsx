@@ -12,8 +12,11 @@ function LoginForm({ onLogin }: LoginFormProps) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (name.trim() === '') return
-    onLogin(name)
+    // Handy-Tastaturen haengen nach einem Wortvorschlag automatisch ein
+    // Leerzeichen an. Der Server speichert Getrimmtes, also hier trimmen.
+    const trimmed = name.trim()
+    if (trimmed === '') return
+    onLogin(trimmed)
   }
 
   return (
