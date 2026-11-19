@@ -49,8 +49,13 @@ function App() {
   // laden darauf neu.
   const [liveVersion, setLiveVersion] = useState(0)
 
+  // Beim Lesen aus localStorage trimmen: ein Leerzeichen am Ende (Handy-
+  // Tastaturen haengen nach einem Wortvorschlag automatisch eines an) wuerde
+  // den exakten Vergleich mit dem getrimmten Servernamen stoeren. Der Effekt
+  // weit unten schreibt den sauberen Wert zurueck; ein Wert, der nach dem
+  // Trimmen leer ist, gilt als ausgeloggt. Innere Leerzeichen bleiben stehen.
   const [currentUser, setCurrentUser] = useState(
-    () => localStorage.getItem('currentUser') ?? ''
+    () => (localStorage.getItem('currentUser') ?? '').trim()
   )
   const currentUserRef = useRef(currentUser)
 

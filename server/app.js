@@ -13,6 +13,12 @@ const MAX_NOTE_LENGTH = 200
 const MAX_ITEMS_PER_ORDER = 5
 const MAX_WISH_LENGTH = 300
 
+// Ein Gastname wird vorne und hinten getrimmt; innere Leerzeichen bleiben.
+// Kein String (z.B. fehlender Query-Parameter) zaehlt als leer.
+function guestName(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 // Gaeste einer Party sitzen meist hinter derselben WLAN-IP, deshalb sind die
 // Limits pro IP grosszuegig und bremsen nur Skripte, keine echten Gaeste.
 function limiter(windowMs, limit, extra = {}) {
@@ -186,7 +192,14 @@ export function createApp({
   })
 
   app.get('/api/orders/history', async (req, res) => {
-    const { guest } = req.query
+    const guest = guestName(req.query.guest)
+    // Fehlender oder leerer Gast: leere Liste wie beim bisherigen leeren
+    // Query-Wert, nicht (wie bisher bei fehlendem Parameter) alles. Kein
+    // Aufrufer nutzt die ungefilterte Liste.
+    if (!guest) {
+      res.json([])
+      return
+    }
     const rows = await prisma.order.findMany({
       where: { name: guest, completedAt: { not: null } },
       orderBy: { completedAt: 'desc' },
@@ -355,15 +368,24 @@ export function createApp({
   })
 
   app.get('/api/ratings', async (req, res) => {
-    const { guest } = req.query
+    const guest = guestName(req.query.guest)
+    // Fehlender oder leerer Gast: leere Liste wie beim bisherigen leeren
+    // Query-Wert, nicht (wie bisher bei fehlendem Parameter) alles.
+    if (!guest) {
+      res.json([])
+      return
+    }
     const rows = await prisma.rating.findMany({ where: { guestName: guest } })
     res.json(rows.map((row) => ({ cocktailId: row.cocktailId, rating: row.rating })))
   })
 
   app.post('/api/ratings', async (req, res) => {
-    const { guestName, cocktailId, rating } = req.body ?? {}
+    const { cocktailId, rating } = req.body ?? {}
+    const guest = guestName(req.body?.guestName)
 
-    if (typeof guestName !== 'string' || !guestName || guestName.length > MAX_NAME_LENGTH) {
+    // Laengennachweis erst nach dem Trimmen: "Testgast" plus 45 Leerzeichen
+    // ist gueltig, ein reiner Leerzeichenname wie ein fehlender Name.
+    if (!guest || guest.length > MAX_NAME_LENGTH) {
       res.status(400).json({ error: `guestName must be 1-${MAX_NAME_LENGTH} characters` })
       return
     }
@@ -382,7 +404,7 @@ export function createApp({
     // Bewertungen abgeben und die Empfehlungen fuer alle verfaelschen.
     const servedOrder = await prisma.order.findFirst({
       where: {
-        name: guestName,
+        name: guest,
         completedAt: { not: null },
         items: { array_contains: [{ id: cocktailId }] },
       },
@@ -393,12 +415,12 @@ export function createApp({
     }
 
     await prisma.rating.upsert({
-      where: { guestName_cocktailId: { guestName, cocktailId } },
-      create: { guestName, cocktailId, rating },
+      where: { guestName_cocktailId: { guestName: guest, cocktailId } },
+      create: { guestName: guest, cocktailId, rating },
       update: { rating },
     })
 
-    res.status(201).json({ guestName, cocktailId, rating })
+    res.status(201).json({ guestName: guest, cocktailId, rating })
   })
 
   // User-based Collaborative Filtering (siehe recommendations.js). Laedt
@@ -406,9 +428,11 @@ export function createApp({
   // Bewertungen und berechnet die Empfehlung pro Anfrage in-memory statt
   // sie vorab zu materialisieren.
   app.get('/api/recommendations', async (req, res) => {
-    const { guest } = req.query
+    const guest = guestName(req.query.guest)
     const ratings = await prisma.rating.findMany()
-    const recommendations = recommendCocktails({ ratings, guestName: guest })
+    // Ohne Gast (fehlend oder leer nach dem Trimmen) laeuft recommendCocktails
+    // wie bisher mit undefined, also ohne Ziel-Gast.
+    const recommendations = recommendCocktails({ ratings, guestName: guest || undefined })
     res.json(recommendations)
   })
 
