@@ -649,6 +649,15 @@ p {
   color: inherit;
 }
 
+/* Abmelden-Knopf: klein, rechtsbuendig uber der Karte */
+.guest-actions {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px 12px;
+}
+
 .error-message {
   background: var(--danger-bg);
   color: var(--danger);

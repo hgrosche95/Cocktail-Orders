@@ -1,0 +1,120 @@
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import App from './App'
+
+vi.mock('./liveUpdates', () => ({ connectLiveUpdates: () => () => {} }))
+
+const openOrder = {
+  orderId: 'o1',
+  name: 'Anan',
+  items: [{ id: 1, name: 'Mojito', orderId: 'i1' }],
+  note: '',
+}
+
+function mockFetch(openOrders) {
+  const fn = vi.fn((url) => {
+    const u = String(url)
+    let data = []
+    if (u.includes('/api/orders') && !u.includes('history')) data = openOrders
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(data) })
+  })
+  vi.stubGlobal('fetch', fn)
+  return fn
+}
+
+function renderApp() {
+  return render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  )
+}
+
+function seedLoggedIn() {
+  localStorage.setItem('currentUser', 'Anan')
+  localStorage.setItem('order', JSON.stringify([{ id: 1, name: 'Mojito', orderId: 'i1' }]))
+  localStorage.setItem('dismissedRatingOrderId', '7')
+  localStorage.setItem('barSound', 'off')
+}
+
+describe('App Abmelden', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  test('Abmelden ohne offene Bestellung zeigt Login und raeumt localStorage', async () => {
+    const user = userEvent.setup()
+    mockFetch([])
+    seedLoggedIn()
+    renderApp()
+
+    await user.click(await screen.findByRole('button', { name: 'Abmelden' }))
+
+    expect(await screen.findByLabelText('Wer kommt hoch?')).toBeInTheDocument()
+    await waitFor(() => expect(localStorage.getItem('currentUser')).toBeNull())
+    expect(localStorage.getItem('order')).toBeNull()
+    expect(localStorage.getItem('dismissedRatingOrderId')).toBeNull()
+    expect(localStorage.getItem('barSound')).toBe('off')
+  })
+
+  test('mit offener Bestellung erst Hinweis, Zurueck bleibt angemeldet', async () => {
+    const user = userEvent.setup()
+    mockFetch([openOrder])
+    seedLoggedIn()
+    renderApp()
+
+    await screen.findByRole('button', { name: 'Abmelden' })
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    await user.click(screen.getByRole('button', { name: 'Abmelden' }))
+
+    expect(await screen.findByText(/läuft unter Anan weiter/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Zurück' }))
+
+    expect(screen.queryByLabelText('Wer kommt hoch?')).not.toBeInTheDocument()
+    expect(localStorage.getItem('currentUser')).toBe('Anan')
+  })
+
+  test('mit offener Bestellung: Ja, abmelden meldet ab ohne DELETE', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockFetch([openOrder])
+    seedLoggedIn()
+    renderApp()
+
+    await screen.findByRole('button', { name: 'Abmelden' })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    await user.click(screen.getByRole('button', { name: 'Abmelden' }))
+    await user.click(await screen.findByRole('button', { name: 'Ja, abmelden' }))
+
+    expect(await screen.findByLabelText('Wer kommt hoch?')).toBeInTheDocument()
+    const methods = fetchMock.mock.calls.map(([, init]) => init?.method)
+    expect(methods).not.toContain('DELETE')
+  })
+
+  test('nach Abmelden neuer Name ohne Reload', async () => {
+    const user = userEvent.setup()
+    mockFetch([])
+    seedLoggedIn()
+    renderApp()
+
+    await user.click(await screen.findByRole('button', { name: 'Abmelden' }))
+    await user.type(await screen.findByLabelText('Wer kommt hoch?'), 'Anna')
+    await user.click(screen.getByRole('button', { name: 'Hochfahren' }))
+
+    expect(await screen.findByRole('button', { name: 'Abmelden' })).toBeInTheDocument()
+    expect(localStorage.getItem('currentUser')).toBe('Anna')
+  })
+
+  test('leeres currentUser in localStorage startet ausgeloggt', async () => {
+    mockFetch([])
+    localStorage.setItem('currentUser', '   ')
+    renderApp()
+
+    expect(await screen.findByLabelText('Wer kommt hoch?')).toBeInTheDocument()
+  })
+})
