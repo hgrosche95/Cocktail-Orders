@@ -118,9 +118,14 @@ function App() {
     return connectLiveUpdates(WS_URL, { onChange: refreshAll, onReconnect: refreshAll })
   }, [refreshGuestData, reportUnreachable])
 
+  // Nur fuer den angemeldeten Gast speichern: sonst wuerde ein Abmelden, das
+  // 'order' entfernt hat, den leeren Cart sofort wieder zurueckschreiben - und
+  // einem ausgeloggten Besucher waere die Bestellung seines Vorgaengers
+  // unterschoben.
   useEffect(() => {
+    if (!currentUser) return
     localStorage.setItem('order', JSON.stringify(order))
-  }, [order])
+  }, [order, currentUser])
 
   useEffect(() => {
     if (currentUser) {
@@ -288,6 +293,25 @@ function App() {
   function handleDismissRatingPrompt(orderId: string) {
     localStorage.setItem('dismissedRatingOrderId', orderId)
     setDismissedHistoryOrderId(orderId)
+  }
+
+  // Abmelden ist reine Client-Aktion: es gibt keine Gast-Session auf dem
+  // Server. Geloescht wird, was an diesem Gast haengt - Cart und die "Spaeter"
+  // gesagt-Merkung. barSound bleibt, weil es eine Geraeteeinstellung ist. Die
+  // offene Bestellung an der Theke bleibt unter dem alten Namen stehen und ist
+  // beim Wiederanmelden mit demselben Namen wieder da; stornieren geht weiter
+  // nur ueber den Abbrechen-Flow.
+  function handleLogout() {
+    setCurrentUser('')
+    // Sofort, damit kein Live-Update die Daten des alten Namens nachlaedt.
+    currentUserRef.current = ''
+    setOrder([])
+    setDismissedHistoryOrderId(null)
+    setReadyItem(null)
+    previousOwnOrderId.current = null
+    awaitingReadyOrderId.current = null
+    localStorage.removeItem('order')
+    localStorage.removeItem('dismissedRatingOrderId')
   }
 
   const latestCompletedOrder = history[0]
@@ -458,6 +482,7 @@ function App() {
                   onWishSubmit={submitWish}
                   wishNote={wishNote}
                   isWishFeatureDisabled={isWishFeatureDisabled}
+                  onLogout={handleLogout}
                 />
               )
             }

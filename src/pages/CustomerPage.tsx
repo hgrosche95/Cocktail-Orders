@@ -33,6 +33,7 @@ interface CustomerPageProps {
   onWishSubmit: (text: string) => void
   wishNote: string
   isWishFeatureDisabled: boolean
+  onLogout: () => void
 }
 
 const SCROLL_STORAGE_KEY = 'menuScroll'
@@ -59,6 +60,7 @@ function CustomerPage({
   onWishSubmit,
   wishNote,
   isWishFeatureDisabled,
+  onLogout,
 }: CustomerPageProps) {
   // Zurueck aus dem Drink-Detail: wieder dort landen, wo der Gast war. Vor dem
   // Zeichnen, sonst springt die Seite sichtbar. Ein Neuladen raeumt der Browser
@@ -103,8 +105,48 @@ function CustomerPage({
     return () => observer.disconnect()
   }, [hasOpenOrder])
 
+  // Abmelden ist reine Client-Aktion. Laeuft noch eine eigene Bestellung, fragt
+  // der Knopf erst nach: sie bleibt unter dem alten Namen an der Theke stehen.
+  // Ohne offene Bestellung meldet der Klick sofort ab.
+  // Die Frage ist an die Id genau der Bestellung gekoppelt, deren Abmeldung sie
+  // rueckwaendig fragt. Klick und Anzeige pruefen damit dieselbe Bestellung.
+  // Endet diese Bestellung waehrend der offenen Frage (fertig bedient oder
+  // storniert), faellt die abgeleitete Bedingung weg und die Frage verschwindet:
+  // der State hoelt nicht auf die naechste Bestellung, die eine neue Id hat.
+  const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null)
+  const pendingLogoutOrder =
+    ownOpenOrder && ownOpenOrder.orderId === confirmingOrderId ? ownOpenOrder : null
+
+  function handleLogoutClick() {
+    if (ownOpenOrder) {
+      setConfirmingOrderId(ownOpenOrder.orderId)
+      return
+    }
+    onLogout()
+  }
+
   return (
     <>
+      {/* Der Abmelden-Knopf steht unauffaellig im Kopfbereich ueber der Karte;
+          die Frage erscheint direkt darunter, damit sie im Blickfeld ist. */}
+      <div className="guest-actions">
+        <button type="button" className="btn btn-ghost btn-small" onClick={handleLogoutClick}>
+          Abmelden
+        </button>
+      </div>
+
+      {pendingLogoutOrder && (
+        <div className="notification">
+          <p>Deine Bestellung läuft unter {pendingLogoutOrder.name} weiter. Trotzdem abmelden?</p>
+          <button type="button" className="btn" onClick={onLogout}>
+            Ja, abmelden
+          </button>
+          <button type="button" className="btn" onClick={() => setConfirmingOrderId(null)}>
+            Zurück
+          </button>
+        </div>
+      )}
+
       <div className="queue-row">
         <p className="queue-counter">
           <span className="live-dot" aria-hidden="true" />
