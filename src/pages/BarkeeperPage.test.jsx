@@ -55,4 +55,54 @@ describe('BarkeeperPage', () => {
 
     expect(onToggleSound).toHaveBeenCalled()
   })
+
+  test('readOnly zeigt Bestellung ohne Aktionen', () => {
+    renderPage({ readOnly: true, openOrders: [waiting] })
+
+    expect(screen.getByText('Anna')).toBeInTheDocument()
+    expect(screen.getByText(item.name)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Anfangen/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Erledigt/ })).not.toBeInTheDocument()
+  })
+
+  test('readOnly sperrt Zutaten-Chips', async () => {
+    const { onMarkIngredientAvailable } = renderPage({
+      readOnly: true,
+      unavailableIngredients: ['Minze'],
+    })
+
+    const chips = Array.from(document.querySelectorAll('button.ingredient-chip'))
+    expect(chips.length).toBeGreaterThan(0)
+    for (const chip of chips) {
+      expect(chip).toBeDisabled()
+      await userEvent.click(chip)
+    }
+    expect(onMarkIngredientAvailable).toHaveBeenCalledTimes(0)
+  })
+
+  test('readOnly blendet Karte/Statistik-Links aus', () => {
+    renderPage({ readOnly: true })
+
+    const hrefs = screen.queryAllByRole('link').map((a) => a.getAttribute('href'))
+    expect(hrefs).not.toContain('/barkeeper/statistik')
+    expect(hrefs).not.toContain('/barkeeper/karte')
+  })
+
+  test('Demo-Hinweis ruft onExitDemo', async () => {
+    const onExitDemo = vi.fn()
+    renderPage({ readOnly: true, onExitDemo })
+
+    expect(screen.getByRole('status')).toHaveTextContent(/Demo – nur Lesen/)
+    await userEvent.click(screen.getByRole('button', { name: 'Als Barkeeper anmelden' }))
+
+    expect(onExitDemo).toHaveBeenCalledTimes(1)
+  })
+
+  test('ohne readOnly unverändert', () => {
+    renderPage()
+
+    expect(screen.getByRole('button', { name: 'Anfangen' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Erledigt' }).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Demo – nur Lesen/)).not.toBeInTheDocument()
+  })
 })

@@ -293,3 +293,27 @@ test('the bar edits its own drink: guests see the new version live, placed order
     await bar.getByRole('button', { name: 'Ja, entfernen' }).click()
   }
 })
+
+test('Demo-Theke sieht neue Bestellung live', async ({ browser }) => {
+  const guestName = 'Demo-Gast'
+  const demo = await (await browser.newContext()).newPage()
+  const guest = await (await browser.newContext()).newPage()
+
+  await demo.goto('/barkeeper')
+  await demo.getByRole('button', { name: 'Demo ansehen (nur lesen)' }).click()
+
+  await guest.goto('/')
+  await guest.getByLabel('Wer kommt hoch?').fill(guestName)
+  await guest.getByRole('button', { name: /Hochfahren/ }).click()
+  await guest.getByRole('button', { name: /vormerken$/ }).first().click()
+  await guest.getByRole('button', { name: 'Bestellung abschicken' }).click()
+
+  const demoOrder = demo.locator('.barkeeper-order', { hasText: guestName })
+  await expect(demoOrder).toBeVisible({ timeout: 10_000 })
+  await expect(demo.getByRole('button', { name: /Erledigt/ })).toHaveCount(0)
+
+  // Aufraeumen: die Datenbank wird nicht geleert, der Gast storniert selbst.
+  await guest.getByRole('button', { name: 'Stornieren' }).click()
+  await guest.getByRole('button', { name: 'Ja, stornieren' }).click()
+  await expect(demoOrder).toHaveCount(0)
+})

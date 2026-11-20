@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import App from './App'
+import cocktails from './data/cocktails'
 
 vi.mock('./liveUpdates', () => ({ connectLiveUpdates: () => () => {} }))
 
@@ -116,5 +117,68 @@ describe('App Abmelden', () => {
     renderApp()
 
     expect(await screen.findByLabelText('Wer kommt hoch?')).toBeInTheDocument()
+  })
+})
+
+describe('App Demo-Zugang', () => {
+  // Die Theke zeigt die Positionen mit Rezept an; der Server baut die Items
+  // als volle Cocktail-Snapshots (server/app.js), also muss das Mock dasselbe
+  // Format haben wie die echten Antworten von GET /api/orders.
+  const demoOrder = {
+    orderId: 'o9',
+    name: 'Anna',
+    items: [{ ...cocktails[0], orderId: 'i9' }],
+    note: '',
+    startedAt: null,
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function renderAt(path) {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>
+    )
+  }
+
+  test('Demo-Zugang zeigt Theke nur lesend', async () => {
+    const user = userEvent.setup()
+    mockFetch([demoOrder])
+    renderAt('/barkeeper')
+
+    await user.click(await screen.findByRole('button', { name: 'Demo ansehen (nur lesen)' }))
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Erledigt/ })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Barkeeper-Passwort')).not.toBeInTheDocument()
+  })
+
+  test('Demo-Zugang gilt nicht für Statistik', async () => {
+    const fetchMock = mockFetch([])
+    sessionStorage.setItem('barkeeperDemo', '1')
+    renderAt('/barkeeper/statistik')
+
+    expect(await screen.findByLabelText('Barkeeper-Passwort')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/stats'))).toBe(false)
+  })
+
+  test('Demo verlassen führt zum Login', async () => {
+    const user = userEvent.setup()
+    mockFetch([demoOrder])
+    sessionStorage.setItem('barkeeperDemo', '1')
+    renderAt('/barkeeper')
+
+    await user.click(await screen.findByRole('button', { name: 'Als Barkeeper anmelden' }))
+
+    expect(await screen.findByLabelText('Barkeeper-Passwort')).toBeInTheDocument()
+    expect(sessionStorage.getItem('barkeeperDemo')).toBeNull()
   })
 })

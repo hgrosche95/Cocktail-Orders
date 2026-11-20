@@ -492,6 +492,12 @@ p {
   padding-top: 4px;
 }
 
+/* Demo-Einstieg im Barkeeper-Login: Abstand zum Anmelden-Knopf, damit die
+   Lese-Einladung nicht wie eine zweite Anmelde-Schaltflaeche wirkt. */
+.barkeeper-demo-btn {
+  margin-top: 8px;
+}
+
 /* Drink-Detail */
 
 .drink-page {
@@ -1626,6 +1632,23 @@ p {
 
 .bar-header .btn {
   text-decoration: none;
+}
+
+/* Demo-Lesemodus an der Theke: steht ueber den Bestellungen und bleibt schmal,
+   damit die Lese-Einladung nicht wie ein Bedien-Element der Theke wirkt. */
+.barkeeper-demo-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-2);
+  font-size: 15px;
 }
 
 /* Statistik */
