@@ -120,6 +120,49 @@ describe('App Abmelden', () => {
   })
 })
 
+describe('App abgelehnte Bestellung', () => {
+  const mojito = cocktails.find((c) => c.name === 'Mojito')
+  const message = 'Dieser Drink ist gerade nicht verfuegbar: Mojito.'
+
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem('currentUser', 'Anan')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  test('shows the server error and hides the drink when the order is rejected as unavailable', async () => {
+    const user = userEvent.setup()
+    let unavailable = []
+    const json = (status, data) =>
+      Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(data) })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url, init) => {
+        const u = String(url)
+        if (u.includes('/api/orders') && init?.method === 'POST') {
+          unavailable = [mojito.ingredients[0]]
+          return json(409, { error: message })
+        }
+        if (u.includes('/api/unavailable-ingredients')) return json(200, unavailable)
+        if (u.endsWith('/menu')) return json(200, cocktails)
+        return json(200, [])
+      })
+    )
+    renderApp()
+
+    await user.click(await screen.findByRole('button', { name: 'Mojito vormerken' }))
+    await user.click(await screen.findByRole('button', { name: 'Bestellung abschicken' }))
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Mojito vormerken' })).not.toBeInTheDocument()
+    )
+  })
+})
+
 describe('App Demo-Zugang', () => {
   // Die Theke zeigt die Positionen mit Rezept an; der Server baut die Items
   // als volle Cocktail-Snapshots (server/app.js), also muss das Mock dasselbe

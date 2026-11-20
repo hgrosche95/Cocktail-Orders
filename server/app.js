@@ -25,6 +25,15 @@ function limiter(windowMs, limit, extra = {}) {
   return rateLimit({ windowMs, limit, standardHeaders: 'draft-8', legacyHeaders: false, ...extra })
 }
 
+// Liefert das erste Cocktail-Item, das eine als leer markierte Zutat braucht,
+// sonst undefined. Verglichen wird exakt wie im Client (CocktailList.tsx),
+// ohne Normalisierung. Grundlage sind nur die Zutaten der Server-Karte.
+function firstUnavailable(cocktails, unavailableSet) {
+  return cocktails.find((cocktail) =>
+    cocktail.ingredients.some((ingredient) => unavailableSet.has(ingredient))
+  )
+}
+
 export function createApp({
   prisma,
   barkeeperPassword,
@@ -239,6 +248,24 @@ export function createApp({
       res.status(400).json({ error: 'unknown cocktail' })
       return
     }
+
+    // Bestand pruefen: der Client-Filter kann veraltet sein (die Seite wurde vor
+    // der Markierung geladen), der Server ist die Grenze. Grundlage sind die
+    // Zutaten der Server-Karte, nie Daten aus dem Request-Body. Ein Wettlauf
+    // (die Theke markiert genau waehrend der Bestellung) wird nicht per
+    // Transaktion abgesichert - fuer eine Hausbar reicht die Pruefung direkt
+    // vor dem Anlegen.
+    const unavailable = new Set(
+      (await prisma.unavailableIngredient.findMany()).map((row) => row.ingredient)
+    )
+    const blockedCocktail = firstUnavailable(menuItems, unavailable)
+    if (blockedCocktail) {
+      res
+        .status(409)
+        .json({ error: `Dieser Drink ist gerade nicht verfuegbar: ${blockedCocktail.name}.` })
+      return
+    }
+
     const orderItems = menuItems.map((cocktail) => ({ ...cocktail, orderId: crypto.randomUUID() }))
 
     // Frueher nur im Client geprueft (hasOpenOrder in App.tsx).

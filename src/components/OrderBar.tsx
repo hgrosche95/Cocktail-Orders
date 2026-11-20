@@ -102,8 +102,11 @@ function OrderBar({
   else if (ownOpenOrder) summaryHint = 'Erst wenn dein offener Drink fertig ist'
 
   // "Schon offen" gilt nur, solange die andere Bestellung noch laeuft.
+  // Absage ist alles ausser 'sent'; den Text holt orderErrorMessage().
   const showFailure =
-    failure?.orderId === drink.orderId && (failure.result !== 'already-open' || ownOpenOrder !== null)
+    failure?.orderId === drink.orderId &&
+    ((failure.result !== 'sent' && failure.result !== 'already-open') ||
+      (failure.result === 'already-open' && ownOpenOrder !== null))
 
   return (
     <form className="order-bar" onSubmit={handleSubmit}>
