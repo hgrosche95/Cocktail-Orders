@@ -69,8 +69,14 @@ function App() {
     currentUser,
     reportUnreachable
   )
-  const { isBarkeeperAuthenticated, login: handleBarkeeperLogin, barkeeperFetch } =
-    useBarkeeperAuth()
+  const {
+    isBarkeeperAuthenticated,
+    isDemo,
+    startDemo,
+    endDemo,
+    login: handleBarkeeperLogin,
+    barkeeperFetch,
+  } = useBarkeeperAuth()
 
   useEffect(() => {
     currentUserRef.current = currentUser
@@ -356,7 +362,10 @@ function App() {
   // Gong an der Theke bei neuen Bestellungen. Die Einstellung gilt pro
   // Geraet (localStorage), Standard ist an.
   const [isSoundOn, setIsSoundOn] = useState(() => localStorage.getItem('barSound') !== 'off')
-  const isBarView = isBarkeeperAuthenticated && barkeeperMatch !== null
+  // Demo zaehlt mit: der Gong ist Teil des Live-Zusammenspiels, das die Demo
+  // gerade zeigen soll. Die Lade-Routen fuer Bestellungen und Zutaten sind
+  // oeffentlich, bleiben also unabhaengig vom Modus.
+  const isBarView = (isBarkeeperAuthenticated || isDemo) && barkeeperMatch !== null
   useNewOrderChime({
     orders: hasLoadedOrders ? openOrders : null,
     enabled: isBarView && isSoundOn,
@@ -530,19 +539,24 @@ function App() {
           <Route
             path="/barkeeper"
             element={
-              isBarkeeperAuthenticated ? (
+              // Demo gilt nur fuer diese Route: ohne echtes Token wird die
+              // Theke nur lesend gezeigt; die Schreib-Handler bleiben in der
+              // UI unerreichbar.
+              isBarkeeperAuthenticated || isDemo ? (
                 <BarkeeperPage
                   openOrders={openOrders}
                   onMarkAsDone={handleMarkAsDone}
-                onStartOrder={handleStartOrder}
-                isSoundOn={isSoundOn}
-                onToggleSound={handleToggleSound}
+                  onStartOrder={handleStartOrder}
+                  isSoundOn={isSoundOn}
+                  onToggleSound={handleToggleSound}
                   unavailableIngredients={unavailableIngredients}
                   onMarkIngredientUnavailable={handleMarkIngredientUnavailable}
                   onMarkIngredientAvailable={handleMarkIngredientAvailable}
+                  readOnly={!isBarkeeperAuthenticated}
+                  onExitDemo={endDemo}
                 />
               ) : (
-                <BarkeeperLogin onLogin={handleBarkeeperLogin} />
+                <BarkeeperLogin onLogin={handleBarkeeperLogin} onStartDemo={startDemo} />
               )
             }
           />

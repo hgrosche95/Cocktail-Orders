@@ -30,6 +30,13 @@ interface BarkeeperPageProps {
   unavailableIngredients: string[]
   onMarkIngredientUnavailable: (ingredient: string) => void
   onMarkIngredientAvailable: (ingredient: string) => void
+  /**
+   * Lesemodus fuer Besucher ohne Barkeeper-Token: die Theke zeigt, was sie sieht,
+   * aber niemand anders darf verstellen. Handler werden trotzdem uebergeben, weil
+   * sie im echten Betrieb noetig sind - im Lesemodus sind sie ueber die UI unerreichbar.
+   */
+  readOnly?: boolean
+  onExitDemo?: () => void
 }
 
 function BarkeeperPage({
@@ -41,12 +48,23 @@ function BarkeeperPage({
   unavailableIngredients,
   onMarkIngredientUnavailable,
   onMarkIngredientAvailable,
+  readOnly = false,
+  onExitDemo,
 }: BarkeeperPageProps) {
   const cocktails = useMenu()
   const allIngredients = getAllIngredients(cocktails)
 
   return (
     <div>
+      {readOnly && (
+        <div className="barkeeper-demo-hint">
+          {/* Live-Region nur fuer den Text: der Exit-Button soll nicht mit angesagt werden. */}
+          <span role="status">Demo – nur Lesen. Änderungen sind der Theke vorbehalten.</span>
+          <button type="button" className="btn btn-ghost btn-small" onClick={onExitDemo}>
+            Als Barkeeper anmelden
+          </button>
+        </div>
+      )}
       <div className="bar-header">
         <h2>
           Theke <span className="category-count">{openOrders.length} offen</span>
@@ -61,12 +79,18 @@ function BarkeeperPage({
           >
             {isSoundOn ? '🔔 Ton an' : '🔕 Ton aus'}
           </button>
-          <Link to="/barkeeper/karte" className="btn btn-ghost btn-small">
-            Karte
-          </Link>
-          <Link to="/barkeeper/statistik" className="btn btn-ghost btn-small">
-            Statistik
-          </Link>
+          {/* Karte und Statistik brauchen den echten Zugang: Statistik fetcht /api/stats
+              mit Token, ein Demo-401 wuerde die Theke herauswerfen. */}
+          {!readOnly && (
+            <>
+              <Link to="/barkeeper/karte" className="btn btn-ghost btn-small">
+                Karte
+              </Link>
+              <Link to="/barkeeper/statistik" className="btn btn-ghost btn-small">
+                Statistik
+              </Link>
+            </>
+          )}
         </div>
       </div>
       {openOrders.length === 0 ? (
@@ -112,24 +136,26 @@ function BarkeeperPage({
                 })}
               </ul>
               {submittedOrder.note && <p className="note">„{submittedOrder.note}“</p>}
-              <div className="order-actions">
-                {!submittedOrder.startedAt && (
+              {!readOnly && (
+                <div className="order-actions">
+                  {!submittedOrder.startedAt && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => onStartOrder(submittedOrder.orderId)}
+                    >
+                      Anfangen
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="btn btn-ghost"
-                    onClick={() => onStartOrder(submittedOrder.orderId)}
+                    className="btn btn-light"
+                    onClick={() => onMarkAsDone(submittedOrder.orderId)}
                   >
-                    Anfangen
+                    Erledigt
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-light"
-                  onClick={() => onMarkAsDone(submittedOrder.orderId)}
-                >
-                  Erledigt
-                </button>
-              </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -147,7 +173,14 @@ function BarkeeperPage({
                 type="button"
                 className={isUnavailable ? 'ingredient-chip unavailable' : 'ingredient-chip'}
                 aria-pressed={isUnavailable}
-                title={isUnavailable ? 'Wieder verfügbar' : 'Als leer markieren'}
+                disabled={readOnly}
+                title={
+                  readOnly
+                    ? 'Nur die Theke darf den Bestand ändern'
+                    : isUnavailable
+                      ? 'Wieder verfügbar'
+                      : 'Als leer markieren'
+                }
                 onClick={() =>
                   isUnavailable
                     ? onMarkIngredientAvailable(ingredient)
