@@ -28,6 +28,19 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }
 
+// Der Server meldet eine abgelehnte Bestellung als { error: '...' }. Kein
+// lesbarer Text (Antwort ohne Body, Antwort ist kein JSON) liefert nichts, was
+// man zeigen koennte - dann bleibt die Standardmeldung.
+async function rejectedOrderText(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json()
+    const error = body?.error
+    return typeof error === 'string' && error.trim() ? error : null
+  } catch {
+    return null
+  }
+}
+
 function App() {
   const [order, setOrder] = useState<OrderItem[]>(() => {
     const saved = localStorage.getItem('order')
@@ -65,6 +78,19 @@ function App() {
   const [isServerUnreachable, setIsServerUnreachable] = useState(false)
   const reportUnreachable = useCallback(() => setIsServerUnreachable(true), [])
 
+  // Der Bestand kommt vom Server, die Seite kennt aber nur den Stand beim
+  // Laden - genau deshalb gibt es den Neuladen als eine Funktion: Live-
+  // Aenderung der Theke, Anfangs Laden und abgelehnte Bestellung holen
+  // dieselben Daten. Eine veraltete Seite zeigt einen Drink sonst weiter als
+  // bestellbar, obwohl die Theke die Zutat schon markiert hat.
+  const reloadUnavailable = useCallback(
+    (): Promise<void> =>
+      getJson<string[]>('/unavailable-ingredients')
+        .then(setUnavailableIngredients)
+        .catch(reportUnreachable),
+    [reportUnreachable]
+  )
+
   const { history, ratings, recommendations, refreshGuestData, rateCocktail } = useGuestData(
     currentUser,
     reportUnreachable
@@ -93,12 +119,6 @@ function App() {
         .catch(reportUnreachable)
     }
 
-    function fetchUnavailableIngredients() {
-      getJson<string[]>('/unavailable-ingredients')
-        .then(setUnavailableIngredients)
-        .catch(reportUnreachable)
-    }
-
     function fetchMenu() {
       getJson<Cocktail[]>('/menu').then(setMenu).catch(reportUnreachable)
     }
@@ -107,7 +127,7 @@ function App() {
       setLiveVersion((version) => version + 1)
       fetchMenu()
       fetchOpenOrders()
-      fetchUnavailableIngredients()
+      reloadUnavailable()
 
       // Betrifft z.B. den Fall, dass der Barkeeper gerade diese Bestellung
       // fertig markiert hat - die Historie muss das mitbekommen, damit der
@@ -119,10 +139,10 @@ function App() {
 
     fetchMenu()
     fetchOpenOrders()
-    fetchUnavailableIngredients()
+    reloadUnavailable()
 
     return connectLiveUpdates(WS_URL, { onChange: refreshAll, onReconnect: refreshAll })
-  }, [refreshGuestData, reportUnreachable])
+  }, [refreshGuestData, reportUnreachable, reloadUnavailable])
 
   // Nur fuer den angemeldeten Gast speichern: sonst wuerde ein Abmelden, das
   // 'order' entfernt hat, den leeren Cart sofort wieder zurueckschreiben - und
@@ -204,13 +224,27 @@ function App() {
           setOrder([])
           return 'sent'
         }
-        // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B.
-        // aus einem zweiten Tab): die holen, damit die Warteansicht erscheint.
+        // Nach jeder abgelehnten Bestellung den Bestand neu laden, damit die
+        // veraltete Seite den Drink nicht weiter als bestellbar zeigt. Der
+        // Neuladen haengt an jedem Fehlschlag - nach dem Fehlertext wird
+        // nicht entschieden. reloadUnavailable() faengt den Fehler selbst und
+        // liefert keinen Text - die Meldung unten bleibt davon unberuehrt.
+        void reloadUnavailable()
+
+        // 409 = Server kennt schon eine offene Bestellung dieses Gasts (z.B. aus
+        // einem zweiten Tab) ODER der Drink ist gerade nicht verfuegbar.
+        // Entschieden wird ueber den Bestand, nicht ueber den Text: erst holen,
+        // dann schauen, ob der Gast dort wirklich steht.
         if (res.status === 409) {
-          getJson<SubmittedOrder[]>('/orders').then(setOpenOrders).catch(reportUnreachable)
-          return 'already-open'
+          const openOrdersNow = await getJson<SubmittedOrder[]>('/orders').catch(() => null)
+          if (openOrdersNow) {
+            setOpenOrders(openOrdersNow)
+            if (openOrdersNow.some((o) => o.name === currentUser)) return 'already-open'
+          }
         }
-        return 'failed'
+
+        const message = await rejectedOrderText(res)
+        return message ? { failed: message } : 'failed'
       })
       .catch((): OrderResult => 'failed')
   }

@@ -550,6 +550,93 @@ describe('unavailable ingredients', () => {
 
     expect(response.status).toBe(400)
   })
+
+  describe('ordering', () => {
+    const first = cocktails[0]
+    const blocked = first.ingredients.includes('Rum') ? 'Rum' : first.ingredients[0]
+    const other = cocktails.find((c) => !c.ingredients.includes(blocked))
+
+    function orderItems(name, ...items) {
+      return request(app).post('/api/orders').send({ name, items, note: '' })
+    }
+
+    test('rejects an order whose cocktail needs an unavailable ingredient', async () => {
+      await markUnavailable(blocked)
+
+      const response = await orderItems('Max', { id: first.id })
+
+      expect(response.status).toBe(409)
+      expect(response.body.error).toContain(first.name)
+      expect((await request(app).get('/api/orders')).body).toEqual([])
+    })
+
+    test('accepts the order again after the ingredient is marked available', async () => {
+      await markUnavailable(blocked)
+      await request(app)
+        .delete('/api/unavailable-ingredients')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ ingredient: blocked })
+
+      const response = await orderItems('Max', { id: first.id })
+
+      expect(response.status).toBe(201)
+    })
+
+    test('accepts an order for a cocktail that does not use the unavailable ingredient', async () => {
+      await markUnavailable(blocked)
+
+      const response = await orderItems('Max', { id: other.id })
+
+      expect(response.status).toBe(201)
+    })
+
+    test('rejects an order of several items if one is unavailable', async () => {
+      await markUnavailable(blocked)
+
+      const response = await orderItems('Max', { id: other.id }, { id: first.id })
+
+      expect(response.status).toBe(409)
+      expect((await request(app).get('/api/orders')).body).toEqual([])
+      expect(await prisma.order.count()).toBe(0)
+    })
+
+    test('checks custom cocktails too', async () => {
+      const created = await request(app)
+        .post('/api/menu')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          name: 'Testdrink',
+          category: 'Süß & Fruchtig',
+          description: 'Nur fuer den Test.',
+          recipe: {
+            ingredients: [{ name: 'Testlikoer', amountCl: 4 }],
+            ice: 'Auf Eis',
+            servedWithIceCubes: true,
+          },
+        })
+      expect(created.body.id).toBeGreaterThanOrEqual(1001)
+      await markUnavailable('Testlikoer')
+
+      const response = await orderItems('Max', { id: created.body.id })
+
+      expect(response.status).toBe(409)
+      expect(await prisma.order.count()).toBe(0)
+    })
+
+    test('unknown cocktail id still returns 400 while an ingredient is unavailable', async () => {
+      await markUnavailable(blocked)
+
+      const response = await orderItems('Max', { id: 99999 })
+
+      // Der Server meldet eine unbekannte id seit jeher als 400 'unknown
+      // cocktail' (nicht 404, wie der Plan annimmt); die neue Pruefung auf
+      // leere Zutaten aendert daran nichts. Der 400 laeuft hier bei leerer
+      // Zutat - die Reihenfolge (erst id, dann Bestand) zusammen mit dem
+      // 409 desselben Drinks im Test oben.
+      expect(response.status).toBe(400)
+      expect(response.body.error).toBe('unknown cocktail')
+    })
+  })
 })
 
 describe('ratings', () => {
