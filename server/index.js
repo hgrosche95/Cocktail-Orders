@@ -29,6 +29,10 @@ const app = createApp({
   barkeeperPassword: process.env.BARKEEPER_PASSWORD,
   corsOrigin: process.env.CORS_ORIGIN,
   onChange: broadcastChange,
+  // E2E-Tests bestellen mehrfach von ein und derselben IP (127.0.0.1) gegen
+  // einen einzigen Serverlauf; fuer sie wird das Bestell-Limit per
+  // Environment hochgesetzt. Ohne ORDER_RATE_LIMIT gilt der Default aus createApp.
+  orderLimit: Number(process.env.ORDER_RATE_LIMIT) || undefined,
 })
 
 // HTTP und WebSocket teilen sich einen Port (statt getrennter Ports wie

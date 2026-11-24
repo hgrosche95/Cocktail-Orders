@@ -44,10 +44,12 @@ export function createApp({
   corsOrigin,
   onChange = () => {},
   recommendByText = defaultRecommendByText,
+  orderLimit = 5,
 } = {}) {
   const app = express()
   const barkeeperOnly = requireBarkeeper(barkeeperPassword)
   const menu = createMenu(prisma)
+  const TEN_MINUTES = 10 * 60 * 1000
 
   // Genau ein Proxy (Azure-Container-Apps-Ingress) vor dem Server, sonst waere
   // req.ip fuer alle Anfragen die Proxy-IP und alle teilten sich ein Limit.
@@ -248,7 +250,10 @@ export function createApp({
     res.json(orders)
   })
 
-  app.post('/api/orders', async (req, res) => {
+  // Begrenzt Bestellungen pro IP, damit niemand die Schlange fuellt. Der
+  // Zaehler zaehlt auch abgelehnte Requests (400/409) mit. orderLimit ist
+  // nur fuer E2E-Tests hochsetzbar, in der Produktion gilt 5.
+  app.post('/api/orders', limiter(TEN_MINUTES, orderLimit), async (req, res) => {
     const { name, items, note = '' } = req.body ?? {}
     const trimmedName = typeof name === 'string' ? name.trim() : ''
 
@@ -466,7 +471,9 @@ export function createApp({
     res.json(rows.map((row) => ({ cocktailId: row.cocktailId, rating: row.rating })))
   })
 
-  app.post('/api/ratings', async (req, res) => {
+  // Begrenzt Bewertungen pro IP. Eigener Zaehler, Bewertungen laufen nicht
+  // gegen das Bestell-Limit (und umgekehrt).
+  app.post('/api/ratings', limiter(TEN_MINUTES, 20), async (req, res) => {
     const { cocktailId, rating } = req.body ?? {}
     const guest = guestName(req.body?.guestName)
 
