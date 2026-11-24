@@ -23,8 +23,12 @@ function getAllIngredients(cocktails: Cocktail[]): string[] {
 
 interface BarkeeperPageProps {
   openOrders: SubmittedOrder[]
+  // Bestellungen, die die Theke gerade erst erledigt hat: ein Fehltipp soll nicht
+  // endgueltig sein. Die Liste kommt fertig gefiltert vom Server.
+  recentlyCompleted: SubmittedOrder[]
   onMarkAsDone: (orderId: string) => void
   onStartOrder: (orderId: string) => void
+  onReopenOrder: (orderId: number) => void
   isSoundOn: boolean
   onToggleSound: () => void
   unavailableIngredients: string[]
@@ -41,8 +45,10 @@ interface BarkeeperPageProps {
 
 function BarkeeperPage({
   openOrders,
+  recentlyCompleted,
   onMarkAsDone,
   onStartOrder,
+  onReopenOrder,
   isSoundOn,
   onToggleSound,
   unavailableIngredients,
@@ -159,6 +165,44 @@ function BarkeeperPage({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Ein Fehltipp an der Theke soll kein Endzustand sein: der Server liefert die
+          erledigten Bestellungen der letzten Minuten, hier haengt der Rueckweg dran.
+          Die Demo-Theke faengt sich ohne Token nur ein 401 ein, also bleibt der
+          Abschnitt dort ganz weg. Bewusst ohne Klasse barkeeper-order: die Selektoren
+          der Offenen-Theke treffen auf diese Klasse zu, eine erledigte Bestellung soll
+          dort nicht mitgefunden werden. */}
+      {!readOnly && recentlyCompleted.length > 0 && (
+        <>
+          <h2>Gerade erledigt</h2>
+          <p className="section-hint">Falsch getippt? Hol die Bestellung zurück, solange sie hier steht.</p>
+          <ul className="order-list">
+            {recentlyCompleted.map((order) => (
+              <li key={order.orderId} className="card">
+                <h3>{order.name}</h3>
+                <ul className="recipe-list">
+                  {order.items.map((item, index) => (
+                    <li key={`${order.orderId}-${index}`} className="recipe-item">
+                      <strong className="recipe-name">{item.name}</strong>
+                    </li>
+                  ))}
+                </ul>
+                <div className="order-actions">
+                  {/* Die Bestell-ids kommen vom Server als Zahl, SubmittedOrder fuehrt
+                      sie als String - ohne die Umwandlung wuerde die Route verfehlt. */}
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => onReopenOrder(Number(order.orderId))}
+                  >
+                    Rückgängig
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       <h2>Bestand</h2>

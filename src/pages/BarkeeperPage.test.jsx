@@ -16,12 +16,14 @@ function renderPage(props = {}) {
     onToggleSound: vi.fn(),
     onMarkIngredientUnavailable: vi.fn(),
     onMarkIngredientAvailable: vi.fn(),
+    onReopenOrder: vi.fn(),
   }
   render(
     <MemoryRouter>
       <BarkeeperPage
         openOrders={[waiting, mixing]}
         unavailableIngredients={[]}
+        recentlyCompleted={[]}
         isSoundOn
         {...handlers}
         {...props}
@@ -96,6 +98,34 @@ describe('BarkeeperPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Als Barkeeper anmelden' }))
 
     expect(onExitDemo).toHaveBeenCalledTimes(1)
+  })
+
+  const doneOrder = {
+    orderId: 42,
+    name: 'Anna',
+    items: [item],
+    note: '',
+    completedAt: new Date().toISOString(),
+  }
+
+  test('Rückgängig ruft onReopenOrder mit der orderId', async () => {
+    const { onReopenOrder } = renderPage({ recentlyCompleted: [doneOrder] })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Rückgängig' }))
+
+    expect(onReopenOrder).toHaveBeenCalledWith(42)
+  })
+
+  test('kein Rückgängig in der Demo-Theke', () => {
+    renderPage({ readOnly: true, recentlyCompleted: [doneOrder] })
+
+    expect(screen.queryByRole('button', { name: 'Rückgängig' })).not.toBeInTheDocument()
+  })
+
+  test('kein Abschnitt ohne erledigte Bestellungen', () => {
+    renderPage({ recentlyCompleted: [] })
+
+    expect(screen.queryByText('Gerade erledigt')).not.toBeInTheDocument()
   })
 
   test('ohne readOnly unverändert', () => {

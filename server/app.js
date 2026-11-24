@@ -12,6 +12,10 @@ const MAX_NAME_LENGTH = 50
 const MAX_NOTE_LENGTH = 200
 const MAX_ITEMS_PER_ORDER = 5
 const MAX_WISH_LENGTH = 300
+// Zeitfenster, in dem die Theke eine erledigte Bestellung noch zurueckholen
+// kann ("Rueckgaengig"-Button). Ausserhalb ist ein Fehltipp nicht mehr von
+// einem bewussten Abschluss zu unterscheiden.
+const RECENTLY_COMPLETED_MS = 10 * 60 * 1000
 
 // Ein Gastname wird vorne und hinten getrimmt; innere Leerzeichen bleiben.
 // Kein String (z.B. fehlender Query-Parameter) zaehlt als leer.
@@ -223,6 +227,27 @@ export function createApp({
     res.json(orders)
   })
 
+  // Liste fuer den "Rueckgaengig"-Button der Theke: nur Bestellungen, deren
+  // completedAt hoechstens RECENTLY_COMPLETED_MS zurueckliegt (Grenze inclusive,
+  // also genau vor 10 Minuten noch dabei). barkeeperOnly, weil Gaestenamen in
+  // der Liste stehen. Route vor allen /api/orders/:id-Routen registrieren,
+  // sonst liest ':id' das Wort 'recently-completed' als Bestellungs-id.
+  app.get('/api/orders/recently-completed', barkeeperOnly, async (req, res) => {
+    const rows = await prisma.order.findMany({
+      where: { completedAt: { gte: new Date(Date.now() - RECENTLY_COMPLETED_MS) } },
+      orderBy: { completedAt: 'desc' },
+    })
+    const orders = rows.map((row) => ({
+      orderId: row.orderId,
+      name: row.name,
+      items: row.items,
+      note: row.note,
+      startedAt: row.startedAt,
+      completedAt: row.completedAt,
+    }))
+    res.json(orders)
+  })
+
   app.post('/api/orders', async (req, res) => {
     const { name, items, note = '' } = req.body ?? {}
     const trimmedName = typeof name === 'string' ? name.trim() : ''
@@ -354,6 +379,41 @@ export function createApp({
       where: { orderId: id },
       data: { completedAt: new Date() },
     })
+
+    onChange()
+    res.status(204).end()
+  })
+
+  // Rueckweg fuer einen Fehltipp an der Theke: geloescht wird nichts, es wird
+  // nur das Datum zurueckgenommen, das complete gesetzt hat. startedAt bleibt
+  // unangetastet, eine schon gestartete Bestellung liegt also wieder bei
+  // "wird gemixt" und nicht unten in der Warteschlange.
+  app.patch('/api/orders/:id/reopen', barkeeperOnly, async (req, res) => {
+    const { id } = req.params
+    const order = await prisma.order.findUnique({ where: { orderId: id } })
+    if (!order) {
+      res.status(404).json({ error: 'no order with this id' })
+      return
+    }
+    // Nur erledigte Bestellungen koennen zurueckgeholt werden; fuer eine offene
+    // waere der Aufruf ein sinnloser Doppler.
+    if (order.completedAt === null) {
+      res.status(409).json({ error: 'order is not completed' })
+      return
+    }
+
+    try {
+      await prisma.order.update({ where: { orderId: id }, data: { completedAt: null } })
+    } catch (error) {
+      // Der Gast hat nach dem Complete schon neu bestellt: der partielle
+      // Unique-Index (siehe schema.prisma) laesst keine zweite offene Bestellung
+      // zu. Das ist ein Konflikt wie beim Bestellen, kein Serverfehler.
+      if (error?.code === 'P2002') {
+        res.status(409).json({ error: 'guest already has an open order' })
+        return
+      }
+      throw error
+    }
 
     onChange()
     res.status(204).end()

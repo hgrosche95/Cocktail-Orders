@@ -213,6 +213,42 @@ describe('App Demo-Zugang', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/api/stats'))).toBe(false)
   })
 
+  test('Rückgängig an der Theke ruft PATCH /api/orders/42/reopen', async () => {
+    const user = userEvent.setup()
+    sessionStorage.setItem('barkeeperToken', 'test-token')
+    const doneOrder = {
+      orderId: 42,
+      name: 'Anna',
+      items: [{ ...cocktails[0], orderId: 'i42' }],
+      note: '',
+      startedAt: null,
+      completedAt: new Date(Date.now() - 60 * 1000).toISOString(),
+    }
+    const fetchMock = vi.fn((url) => {
+      const u = String(url)
+      let data = []
+      let status = 200
+      if (u.endsWith('/api/orders/recently-completed')) data = [doneOrder]
+      if (u.endsWith('/reopen')) status = 204
+      return Promise.resolve({
+        ok: true,
+        status,
+        json: () => Promise.resolve(data),
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderAt('/barkeeper')
+
+    await user.click(await screen.findByRole('button', { name: 'Rückgängig' }))
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/api/orders/42/reopen'))
+      expect(call).toBeDefined()
+      expect(call[1].method).toBe('PATCH')
+      expect(new Headers(call[1].headers).get('Authorization')).toMatch(/^Bearer /)
+    })
+  })
+
   test('Demo verlassen führt zum Login', async () => {
     const user = userEvent.setup()
     mockFetch([demoOrder])
