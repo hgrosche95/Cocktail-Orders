@@ -41,6 +41,18 @@ describe('WishInput', () => {
     expect(screen.getByText(/Nutz einfach die Karte/)).toBeInTheDocument()
   })
 
+  test('zeigt einen Hinweis, wenn nichts passt', () => {
+    render(<WishInput onSubmit={() => {}} isLoading={false} feedback="no-match" />)
+
+    expect(screen.getByText(/passt gerade nichts auf der Karte/)).toBeInTheDocument()
+  })
+
+  test('zeigt eine Fehlermeldung, wenn die Suche scheitert', () => {
+    render(<WishInput onSubmit={() => {}} isLoading={false} feedback="failed" />)
+
+    expect(screen.getByText(/hat nicht geklappt/)).toHaveClass('error-message')
+  })
+
   test('does not call onSubmit while disabled, even on a direct form submit', () => {
     const onSubmit = vi.fn()
     const { container } = render(
