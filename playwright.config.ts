@@ -30,6 +30,10 @@ export default defineConfig({
         PORT: String(SERVER_PORT),
         BARKEEPER_PASSWORD,
         DATABASE_URL: process.env.DATABASE_URL ?? '',
+        // Alle E2E-Bestellungen kommen von 127.0.0.1 gegen denselben
+        // Serverlauf; das Produktions-Limit (5 pro 10 Minuten) reicht dafuer
+        // nicht. Production ohne ORDER_RATE_LIMIT bleibt bei 5.
+        ORDER_RATE_LIMIT: '1000',
       },
       reuseExistingServer: false,
     },

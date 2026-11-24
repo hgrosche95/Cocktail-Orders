@@ -290,6 +290,38 @@ describe('orders', () => {
     expect((await request(app).get('/api/orders')).body).toHaveLength(1)
   })
 
+  async function fillOrderLimit() {
+    const statuses = []
+    for (let i = 1; i <= 5; i++) {
+      statuses.push((await placeOrder(app, `Gast${i}`)).status)
+    }
+    return statuses
+  }
+
+  test('weist die sechste Bestellung im Zeitfenster mit 429 ab', async () => {
+    const before = await prisma.order.count()
+
+    expect(await fillOrderLimit()).toEqual([201, 201, 201, 201, 201])
+    const sixth = await placeOrder(app, 'Gast6')
+
+    expect(sixth.status).toBe(429)
+    expect(await prisma.order.count()).toBe(before + 5)
+    expect(await prisma.order.count({ where: { name: 'Gast6' } })).toBe(0)
+  })
+
+  test('Bewertung geht nach ausgeschoepftem Bestell-Limit noch durch', async () => {
+    await fillOrderLimit()
+    expect((await placeOrder(app, 'Gast6')).status).toBe(429)
+
+    await serve('Max', 1)
+    const ratingResponse = await request(app)
+      .post('/api/ratings')
+      .send({ guestName: 'Max', cocktailId: 1, rating: 5 })
+
+    expect(ratingResponse.status).toBe(201)
+    expect(await prisma.rating.count({ where: { guestName: 'Max', cocktailId: 1 } })).toBe(1)
+  })
+
   test('allows a new order once the previous one is completed', async () => {
     const first = await placeOrder(app, 'Max')
     await complete(first.body.orderId)
