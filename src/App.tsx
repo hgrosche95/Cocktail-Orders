@@ -197,8 +197,15 @@ function App() {
     setOrder([orderItem])
   }
 
-  const { textRecommendations, isTextRecommending, wishNote, isWishFeatureDisabled, submitWish } =
-    useWish({ cocktails: menu, unavailableIngredients, onSingleMatch: handleAddToOrder })
+  const {
+    textRecommendations,
+    isTextRecommending,
+    wishNote,
+    wishFeedback,
+    isWishFeatureDisabled,
+    submitWish,
+    pickWishMatch,
+  } = useWish({ cocktails: menu, unavailableIngredients, onSingleMatch: handleAddToOrder })
 
   function handleOrderNow(cocktail: Cocktail, note: string) {
     return handleSubmitOrder(note, [{ ...cocktail, orderId: generateId() }])
@@ -575,7 +582,9 @@ function App() {
                   textRecommendations={textRecommendations}
                   isTextRecommending={isTextRecommending}
                   onWishSubmit={submitWish}
+                  onPickWishMatch={pickWishMatch}
                   wishNote={wishNote}
+                  wishFeedback={wishFeedback}
                   isWishFeatureDisabled={isWishFeatureDisabled}
                   onLogout={handleLogout}
                 />

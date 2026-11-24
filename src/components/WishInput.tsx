@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
+import type { WishFeedback } from '../hooks/useWish'
 
 interface WishInputProps {
   onSubmit: (text: string) => void
   isLoading: boolean
   isDisabled?: boolean
+  feedback?: WishFeedback
 }
 
-function WishInput({ onSubmit, isLoading, isDisabled = false }: WishInputProps) {
+const FEEDBACK_TEXT = {
+  'no-match': 'Dazu passt gerade nichts auf der Karte. Beschreib es anders oder schau unten.',
+  failed: 'Das hat nicht geklappt. Versuch es gleich noch einmal.',
+}
+
+function WishInput({ onSubmit, isLoading, isDisabled = false, feedback = null }: WishInputProps) {
   const [text, setText] = useState('')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -37,9 +44,18 @@ function WishInput({ onSubmit, isLoading, isDisabled = false }: WishInputProps) 
       >
         {isLoading ? 'Sucht …' : 'Finden'}
       </button>
-      {isDisabled && (
-        <p className="error-message">Gerade nicht verfügbar. Nutz einfach die Karte.</p>
-      )}
+      {/* Steht immer im DOM, sonst lesen Screenreader die Meldung nicht vor. */}
+      <div className="wish-feedback" aria-live="polite">
+        {isDisabled ? (
+          <p className="error-message">Gerade nicht verfügbar. Nutz einfach die Karte.</p>
+        ) : (
+          feedback && (
+            <p className={feedback === 'failed' ? 'error-message' : 'wish-hint'}>
+              {FEEDBACK_TEXT[feedback]}
+            </p>
+          )
+        )}
+      </div>
     </form>
   )
 }

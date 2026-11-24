@@ -9,6 +9,7 @@ import HelpGuide from '../components/HelpGuide'
 import WaitingPanel from '../components/WaitingPanel'
 import type { Cocktail } from '../data/cocktails'
 import type { OrderResult } from '../orderResult'
+import type { WishFeedback } from '../hooks/useWish'
 import type { OrderItem, SubmittedOrder, Recommendation } from '../types'
 
 interface CustomerPageProps {
@@ -31,7 +32,9 @@ interface CustomerPageProps {
   textRecommendations: Recommendation[]
   isTextRecommending: boolean
   onWishSubmit: (text: string) => void
+  onPickWishMatch: (cocktail: Cocktail) => void
   wishNote: string
+  wishFeedback: WishFeedback
   isWishFeatureDisabled: boolean
   onLogout: () => void
 }
@@ -58,7 +61,9 @@ function CustomerPage({
   textRecommendations,
   isTextRecommending,
   onWishSubmit,
+  onPickWishMatch,
   wishNote,
+  wishFeedback,
   isWishFeatureDisabled,
   onLogout,
 }: CustomerPageProps) {
@@ -184,11 +189,12 @@ function CustomerPage({
         onSubmit={onWishSubmit}
         isLoading={isTextRecommending}
         isDisabled={isWishFeatureDisabled}
+        feedback={wishFeedback}
       />
       <Recommendations
         recommendations={textRecommendations}
         unavailableIngredients={unavailableIngredients}
-        onAddToOrder={onAddToOrder}
+        onAddToOrder={onPickWishMatch}
         title="Passend zu deinem Wunsch"
       />
 
