@@ -48,6 +48,10 @@ function App() {
   })
 
   const [openOrders, setOpenOrders] = useState<SubmittedOrder[]>([])
+  // Was die Theke in den letzten Minuten erledigt hat - die Liste fuer den
+  // Rueckgaengig-Button. Sie kommt vorgefiltert vom Server, weil die Seite
+  // nach einem Neuladen nicht weiss, wann etwas erledigt wurde.
+  const [recentlyCompleted, setRecentlyCompleted] = useState<SubmittedOrder[]>([])
   const [hasLoadedOrders, setHasLoadedOrders] = useState(false)
   const [unavailableIngredients, setUnavailableIngredients] = useState<string[]>([])
   // Grundkarte sofort, die ganze Karte (mit Drinks der Theke) sobald der
@@ -91,6 +95,21 @@ function App() {
     [reportUnreachable]
   )
 
+  // Dasselbe Muster wie der Bestand: die offenen Bestellungen kommen vom Server,
+  // damit nach einer Theken-Aktion (Rueckgaengig) nicht lokal nachgebaut wird,
+  // was gerade wirklich offen ist.
+  const reloadOpenOrders = useCallback(
+    (): Promise<void> =>
+      getJson<SubmittedOrder[]>('/orders')
+        .then((data) => {
+          setOpenOrders(data)
+          setHasLoadedOrders(true)
+          setIsServerUnreachable(false)
+        })
+        .catch(reportUnreachable),
+    [reportUnreachable]
+  )
+
   const { history, ratings, recommendations, refreshGuestData, rateCocktail } = useGuestData(
     currentUser,
     reportUnreachable
@@ -108,17 +127,29 @@ function App() {
     currentUserRef.current = currentUser
   }, [currentUser])
 
-  useEffect(() => {
-    function fetchOpenOrders() {
-      getJson<SubmittedOrder[]>('/orders')
-        .then((data) => {
-          setOpenOrders(data)
-          setHasLoadedOrders(true)
-          setIsServerUnreachable(false)
-        })
-        .catch(reportUnreachable)
-    }
+  // "Gerade erledigt" fuer den Rueckgaengig-Button: die 10-Minuten-Grenze steht
+  // auf dem Server, die Seite uebernimmt nur, was er als erledigt meldet.
+  const loadRecentlyCompleted = useCallback(
+    (): Promise<void> =>
+      barkeeperFetch('/orders/recently-completed').then((res) => {
+        if (!res.ok) return
+        return res.json().then(setRecentlyCompleted)
+      }, reportUnreachable),
+    [barkeeperFetch, reportUnreachable]
+  )
 
+  // liveVersion ist der Zaehler, den refreshAll bei jeder Live-Aenderung hebt -
+  // die Liste haelt sich damit auf demselben Stand wie die offenen Bestellungen.
+  // barkeeperFetch wechselt seine Identitaet mit dem Token, deshalb laedt dieser
+  // Effekt auch direkt nach der Anmeldung.
+  useEffect(() => {
+    // Ohne echten Zugang (Demo inklusive) waere der Aufruf nur ein 401, und
+    // gezeigt wird die Liste an keiner Stelle - siehe visibleRecentlyCompleted.
+    if (!isBarkeeperAuthenticated) return
+    void loadRecentlyCompleted()
+  }, [isBarkeeperAuthenticated, liveVersion, loadRecentlyCompleted])
+
+  useEffect(() => {
     function fetchMenu() {
       getJson<Cocktail[]>('/menu').then(setMenu).catch(reportUnreachable)
     }
@@ -126,7 +157,7 @@ function App() {
     function refreshAll() {
       setLiveVersion((version) => version + 1)
       fetchMenu()
-      fetchOpenOrders()
+      reloadOpenOrders()
       reloadUnavailable()
 
       // Betrifft z.B. den Fall, dass der Barkeeper gerade diese Bestellung
@@ -138,11 +169,11 @@ function App() {
     }
 
     fetchMenu()
-    fetchOpenOrders()
+    reloadOpenOrders()
     reloadUnavailable()
 
     return connectLiveUpdates(WS_URL, { onChange: refreshAll, onReconnect: refreshAll })
-  }, [refreshGuestData, reportUnreachable, reloadUnavailable])
+  }, [refreshGuestData, reloadOpenOrders, reloadUnavailable, reportUnreachable])
 
   // Nur fuer den angemeldeten Gast speichern: sonst wuerde ein Abmelden, das
   // 'order' entfernt hat, den leeren Cart sofort wieder zurueckschreiben - und
@@ -276,6 +307,21 @@ function App() {
       setOpenOrders((prevOpenOrders) =>
         prevOpenOrders.filter((o) => o.orderId !== orderId)
       )
+      // Erst nach dem Complete, sonst ist das Datum noch nicht gesetzt und die
+      // Bestellung taucht in der Liste nicht auf.
+      void loadRecentlyCompleted()
+    }, reportUnreachable)
+  }
+
+  // Rueckweg fuer einen Fehltipp: der Server nimmt nur completedAt zurueck,
+  // eine gestartete Bestellung liegt also wieder bei "wird gemixt". Weil der
+  // Server entscheidet, was offen ist und was gerade erledigt wurde, kommen
+  // nach dem Erfolg beide Listen neu von ihm - die Seite baut nichts nach.
+  function handleReopenOrder(orderId: number) {
+    barkeeperFetch(`/orders/${orderId}/reopen`, { method: 'PATCH' }).then((res) => {
+      if (!res.ok) return
+      void reloadOpenOrders()
+      void loadRecentlyCompleted()
     }, reportUnreachable)
   }
 
@@ -386,6 +432,12 @@ function App() {
       setUnavailableIngredients((prev) => prev.filter((i) => i !== ingredient))
     }, reportUnreachable)
   }
+
+  // Anzeige und Ausloeser teilen dieselbe Bedingung: ohne echten Barkeeper-
+  // Zugang wird die Liste weder geladen (Effekt oben) noch gezeigt. Verliert die
+  // Theke ihren Zugang (401-Antwort), ist sie damit sofort leer - es stehen
+  // keine Gaestenamen mehr in der Seite, die gerade nicht mehr lesen darf.
+  const visibleRecentlyCompleted = isBarkeeperAuthenticated ? recentlyCompleted : []
 
   const drinkMatch = useMatch('/drink/:id')
   const detailCocktail = drinkMatch
@@ -579,8 +631,10 @@ function App() {
               isBarkeeperAuthenticated || isDemo ? (
                 <BarkeeperPage
                   openOrders={openOrders}
+                  recentlyCompleted={visibleRecentlyCompleted}
                   onMarkAsDone={handleMarkAsDone}
                   onStartOrder={handleStartOrder}
+                  onReopenOrder={handleReopenOrder}
                   isSoundOn={isSoundOn}
                   onToggleSound={handleToggleSound}
                   unavailableIngredients={unavailableIngredients}

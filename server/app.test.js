@@ -192,6 +192,22 @@ describe('barkeeper-only routes', () => {
 
     expect(response.status).toBe(401)
   })
+
+  test('reopen rejects a request without a token', async () => {
+    const { body: order } = await placeOrder(app, 'Max')
+
+    const response = await request(app).patch(`/api/orders/${order.orderId}/reopen`)
+
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'barkeeper login required' })
+  })
+
+  test('recently-completed rejects a request without a token', async () => {
+    const response = await request(app).get('/api/orders/recently-completed')
+
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'barkeeper login required' })
+  })
 })
 
 describe('orders', () => {
@@ -439,6 +455,129 @@ describe('orders', () => {
     await complete(createResponse.body.orderId)
 
     expect(onChange).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('PATCH /api/orders/:id/reopen', () => {
+  let app
+  let token
+  let onChange
+
+  beforeEach(async () => {
+    onChange = vi.fn()
+    app = buildTestApp({ onChange })
+    token = await barkeeperToken(app)
+  })
+
+  function barkeeperPatch(orderId, action) {
+    return request(app)
+      .patch(`/api/orders/${orderId}/${action}`)
+      .set('Authorization', `Bearer ${token}`)
+  }
+
+  test('reopen puts a completed order back into the open list', async () => {
+    const { body } = await placeOrder(app, 'Anna')
+    await barkeeperPatch(body.orderId, 'start')
+    await barkeeperPatch(body.orderId, 'complete')
+
+    const response = await barkeeperPatch(body.orderId, 'reopen')
+
+    expect(response.status).toBe(204)
+    const list = await request(app).get('/api/orders')
+    const reopened = list.body.find((o) => o.orderId === body.orderId)
+    expect(reopened).toBeDefined()
+    expect(reopened.startedAt).not.toBeNull()
+  })
+
+  test('reopen calls onChange once after success', async () => {
+    const { body } = await placeOrder(app, 'Anna')
+    await barkeeperPatch(body.orderId, 'complete')
+    const before = onChange.mock.calls.length
+
+    await barkeeperPatch(body.orderId, 'reopen')
+
+    expect(onChange.mock.calls.length - before).toBe(1)
+  })
+
+  test('reopen answers 409 for an order that is not completed', async () => {
+    const { body } = await placeOrder(app, 'Anna')
+    const before = onChange.mock.calls.length
+
+    const response = await barkeeperPatch(body.orderId, 'reopen')
+
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'order is not completed' })
+    expect(onChange.mock.calls.length).toBe(before)
+  })
+
+  test('reopen answers 404 for an unknown id', async () => {
+    const response = await barkeeperPatch('999999', 'reopen')
+
+    expect(response.status).toBe(404)
+  })
+
+  test('reopen answers 409 when the guest already has a new open order', async () => {
+    const { body: old } = await placeOrder(app, 'Anna')
+    await barkeeperPatch(old.orderId, 'complete')
+    const { body: fresh } = await placeOrder(app, 'Anna')
+
+    const response = await barkeeperPatch(old.orderId, 'reopen')
+
+    expect(response.status).toBe(409)
+    expect(response.body).toEqual({ error: 'guest already has an open order' })
+    const list = await request(app).get('/api/orders')
+    expect(list.body.map((o) => o.orderId)).toEqual([fresh.orderId])
+  })
+})
+
+describe('GET /api/orders/recently-completed', () => {
+  let app
+  let token
+
+  beforeEach(async () => {
+    app = buildTestApp()
+    token = await barkeeperToken(app)
+  })
+
+  function complete(orderId) {
+    return request(app)
+      .patch(`/api/orders/${orderId}/complete`)
+      .set('Authorization', `Bearer ${token}`)
+  }
+
+  test('recently-completed lists orders completed within 10 minutes', async () => {
+    const { body: recent } = await placeOrder(app, 'Anna')
+    const { body: old } = await placeOrder(app, 'Ben')
+    await complete(recent.orderId)
+    await complete(old.orderId)
+    await prisma.order.update({
+      where: { orderId: recent.orderId },
+      data: { completedAt: new Date(Date.now() - 9 * 60 * 1000) },
+    })
+    await prisma.order.update({
+      where: { orderId: old.orderId },
+      data: { completedAt: new Date(Date.now() - 11 * 60 * 1000) },
+    })
+
+    const response = await request(app)
+      .get('/api/orders/recently-completed')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(response.status).toBe(200)
+    expect(response.body).toHaveLength(1)
+    expect(response.body[0]).toMatchObject({ orderId: recent.orderId, name: 'Anna' })
+    expect(response.body[0].completedAt).toBeTypeOf('string')
+  })
+
+  test('recently-completed omits open orders', async () => {
+    await placeOrder(app, 'Anna')
+
+    const response = await request(app)
+      .get('/api/orders/recently-completed')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual([])
   })
 })
 
